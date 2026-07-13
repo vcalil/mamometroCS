@@ -1,0 +1,21 @@
+{
+  "name": "mamometro-cs",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Mamômetro CS — ranking oficial das mamadas (quem não bateu a meta mama quem bateu)",
+  "scripts": {
+    "dev": "netlify dev",
+    "vite": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "firebase": "^10.12.2",
+    "vite": "^5.4.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  }
+}

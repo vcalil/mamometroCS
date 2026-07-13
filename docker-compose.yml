@@ -1,0 +1,17 @@
+# Rodar localmente com Docker:
+#   docker compose up --build
+# Depois abra http://localhost:8888
+#
+# As variáveis (Firebase + STEAM_API_KEY) vêm do .env:
+#   - VITE_* são usadas no BUILD (baked no site).
+#   - STEAM_API_KEY é usada em RUNTIME pela function.
+services:
+  mamometro:
+    build: .
+    ports:
+      - "8888:8888"
+    env_file:
+      - .env
+    environment:
+      - PORT=8888
+    restart: unless-stopped

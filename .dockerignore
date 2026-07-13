@@ -1,0 +1,7 @@
+node_modules
+dist
+.netlify
+.git
+*.log
+# Obs.: o .env NÃO é ignorado de propósito — o Vite precisa das VITE_*
+# no build. Isso vale só pro build LOCAL na sua máquina.
