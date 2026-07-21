@@ -25,10 +25,35 @@ export const steamIdDoUser = (user) =>
 export const SENHA_MIN = 6;
 
 // Admins: SteamIDs que podem abrir o painel do organizador (Vini e Iago).
-const ADMIN_IDS = (env.VITE_ADMIN_STEAMIDS || "")
+// Papéis: `papeis/<steamid>` = "master" | "organizador".
+//   comum       -> não aparece no nó
+//   organizador -> aprova partidas e VOTA na assembleia
+//   master      -> faz tudo direto (promove, seasons), mas NÃO vota
+// Quem decide de verdade são as regras do banco; isto aqui liga/desliga botões.
+let PAPEIS = {};
+
+// Semente do build: os SteamIDs do .env entram como master até o banco falar.
+(env.VITE_ADMIN_STEAMIDS || "")
   .split(",")
   .map((s) => s.trim())
-  .filter(Boolean);
+  .filter(Boolean)
+  .forEach((sid) => (PAPEIS[sid] = "master"));
+
+export function definirPapeis(obj) {
+  if (obj && Object.keys(obj).length) PAPEIS = { ...obj };
+}
+
+export const papelDe = (sid) => (sid ? PAPEIS[sid] || null : null);
+export const meuPapel = () => papelDe(steamIdDoUser(currentUser));
+export const ehMaster = () => meuPapel() === "master";
+export const ehOrganizador = () => meuPapel() === "organizador";
+
+// Lista de quem vota: só organizadores (master é excluído de propósito).
+export const listaVotantes = () =>
+  Object.keys(PAPEIS).filter((sid) => PAPEIS[sid] === "organizador");
+export const listaPapeis = () => ({ ...PAPEIS });
+
+
 
 // Rastreia o usuário logado de forma central e avisa quem se inscrever.
 let currentUser = null;
@@ -47,9 +72,9 @@ export function usuarioAtual() {
 export function authPronto() {
   return authReady;
 }
+// "Admin" = tem algum papel (organizador ou master): abre o painel.
 export function ehAdmin() {
-  const sid = steamIdDoUser(currentUser);
-  return !!sid && ADMIN_IDS.includes(sid);
+  return !!meuPapel();
 }
 
 // Cadastro: resolve o perfil da Steam (valida + pega avatar) e cria a conta.

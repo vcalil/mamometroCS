@@ -1,6 +1,7 @@
 import { dados, nomeDe, escapar } from "../state.js";
 import { estatisticas } from "../stats.js";
 import { configurado } from "../firebase.js";
+import { listaSeasons, seasonAtual } from "../seasons.js";
 
 // Tag <img> do avatar (ou vazio se o jogador não tem perfil Steam).
 function avImg(url, cls = "av") {
@@ -30,6 +31,12 @@ const TEXTOS = {
 };
 
 let visao = "deu"; // "deu" = quem mais mamou | "levou" = quem mais foi mamado
+let seasonSel = null; // null = ainda não escolhido; resolve pra season atual
+
+export function trocarSeason(id) {
+  seasonSel = id;
+  render();
+}
 
 export function trocarVisao(v) {
   visao = v;
@@ -39,11 +46,16 @@ export function trocarVisao(v) {
 // Visualizador público: pódio + classificação geral.
 export function render() {
   if (!configurado) return;
-  const est = estatisticas();
+  // Por padrão mostra a season vigente; "todas" junta o histórico inteiro.
+  if (seasonSel === null) {
+    const sa = seasonAtual();
+    seasonSel = sa ? sa.id : "todas";
+  }
+  const est = estatisticas(seasonSel);
   const { totalMamadas } = est;
   const rank = visao === "deu" ? est.rank : est.rankLevou;
   const t = TEXTOS[visao];
-  document.getElementById("st-partidas").textContent = dados.matches.length;
+  document.getElementById("st-partidas").textContent = est.nPartidas;
   document.getElementById("st-mamadas").textContent = totalMamadas;
   document.getElementById("st-jogadores").textContent = dados.players.length;
   const alvo = document.getElementById("conteudo");
@@ -55,7 +67,32 @@ export function render() {
   const max = Math.max(1, ...rank.map((r) => r.total));
   const medalhas = ["🥇", "🥈", "🥉"];
   const topo = rank.slice(0, 3);
-  let html = `<div class="meta-cap">🎯 Meta: <b>${dados.meta.kills}</b> kills e <b>${dados.meta.damage}</b> de dano</div>`;
+  const seasons = listaSeasons();
+  const opcoes = seasons
+    .map(
+      (s) =>
+        `<option value="${s.id}" ${seasonSel === s.id ? "selected" : ""}>${escapar(
+          s.nome
+        )}</option>`
+    )
+    .join("");
+  let html = `<div class="season-bar">
+      <label class="sb-l">Temporada</label>
+      <select class="sb-sel" onchange="trocarSeason(this.value)">
+        ${opcoes}<option value="todas" ${
+    seasonSel === "todas" ? "selected" : ""
+  }>Todas (histórico)</option>
+      </select>
+      ${(() => {
+        const s = seasons.find((x) => x.id === seasonSel);
+        if (!s) return `<span class="sb-per">todas as partidas</span>`;
+        const f = (d) => (d || "").split("-").reverse().join("/");
+        return `<span class="sb-per">${f(s.inicio)} – ${f(s.fim)}${
+          s.fimEstimado ? " <i>(fim estimado)</i>" : ""
+        }</span>`;
+      })()}
+    </div>
+    <div class="meta-cap">🎯 Meta: <b>${dados.meta.kills}</b> kills e <b>${dados.meta.damage}</b> de dano</div>`;
   html += `<div class="switch">
       <button class="sw ${
         visao === "deu" ? "on" : ""

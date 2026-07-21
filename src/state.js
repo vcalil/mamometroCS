@@ -68,8 +68,17 @@ export function bateuMeta(stat, meta = dados.meta) {
   return k >= meta.kills && d >= meta.damage;
 }
 
-export function salvar() {
-  if (db) set(ref(db, "estado"), dados);
+// As regras separam os ramos de `estado`: elenco é livre pra quem tem conta
+// (vínculo de card), partidas e meta são só do organizador. Por isso cada
+// gravação vai no seu ramo — um set() no nó inteiro seria recusado.
+export function salvarJogadores() {
+  if (db) return set(ref(db, "estado/players"), dados.players);
+}
+export function salvarPartidas() {
+  if (db) return set(ref(db, "estado/matches"), dados.matches);
+}
+export function salvarMeta() {
+  if (db) return set(ref(db, "estado/meta"), dados.meta);
 }
 
 export const uid = () =>

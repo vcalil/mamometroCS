@@ -1,6 +1,6 @@
 import {
   dados,
-  salvar,
+  salvarJogadores,
   uid,
   escapar,
   aguardarDados,
@@ -77,7 +77,10 @@ export function renderConta() {
     const vincBtn = p
       ? ""
       : `<button class="btn-org" onclick="vincularCard()">Vincular meu card</button>`;
-    el.innerHTML = `${vincBtn}${orgBtn}<span class="conta-logado">${avImg(
+    // Enviar partida é aberto a todos: o organizador aprova depois.
+    const envBtn = `<button class="btn-org" onclick="abrirEnviar()">Enviar partida</button>`;
+    const asmBtn = `<button class="btn-org" onclick="abrirAssembleia()">Assembleia</button>`;
+    el.innerHTML = `${envBtn}${asmBtn}${vincBtn}${orgBtn}<span class="conta-logado">${avImg(
       p && p.avatar
     )}<span class="cn">${escapar(nome)}</span><button class="conta-sair" onclick="sairConta()">sair</button></span>`;
   } else {
@@ -276,7 +279,7 @@ export function reivindicar(id) {
   p.steamId = perfilPendente.steamId;
   p.avatar = perfilPendente.avatar || "";
   p.profileUrl = perfilPendente.profileUrl || "";
-  salvar();
+  salvarJogadores();
   perfilPendente = null;
   fechar();
   renderApp();
@@ -290,7 +293,7 @@ export function criarNovoJogador() {
     avatar: perfilPendente.avatar || "",
     profileUrl: perfilPendente.profileUrl || "",
   });
-  salvar();
+  salvarJogadores();
   perfilPendente = null;
   fechar();
   renderApp();

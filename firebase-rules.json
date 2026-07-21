@@ -1,19 +1,70 @@
 {
   "rules": {
     "//": "Regras do Realtime Database do Mamometro. Cole em: Firebase Console -> Realtime Database -> aba Regras -> Publicar.",
-
     ".read": false,
     ".write": false,
-
-    "estado": {
-      "//": "Ranking, jogadores, partidas e meta. So quem tem conta (login Steam + senha) le e grava.",
+    "papeis": {
+      "//": "Papel de cada SteamID: \"master\" ou \"organizador\". Quem nao esta aqui e usuario comum. So MASTER edita.",
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'"
     },
-
+    "estado": {
+      "//": "Ler exige conta. Elenco livre (vinculo de card); partidas: organizador+master; meta: so master.",
+      ".read": "auth != null",
+      "players": {
+        ".write": "auth != null"
+      },
+      "matches": {
+        ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'",
+        "//": "Partidas: organizador e master lancam e aprovam direto (e rotina)."
+      },
+      "meta": {
+        ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'",
+        "//": "A meta so muda por decisao da assembleia, e quem executa e o MASTER. Organizador nao grava aqui."
+      }
+    },
+    "seasons": {
+      "//": "Temporadas do CS2 (datas oficiais da Valve). So MASTER edita; todo mundo com conta le.",
+      ".read": "auth != null",
+      ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'"
+    },
+    "submissoes": {
+      "//": "Fila de partidas enviadas pela galera. Qualquer conta CRIA; organizador ou master aprova/recusa.",
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (!data.exists() || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador')",
+        ".validate": "newData.hasChildren(['date', 'entries', 'autor', 'ts'])"
+      }
+    },
+    "propostas": {
+      "//": "Promover admin, mudar meta, adotar regra. Criar: qualquer conta. Votar: so organizador, e cada um so no PROPRIO voto.",
+      ".read": "auth != null",
+      "$id": {
+        "//": "Escrita liberada por CAMPO, nao no no inteiro: no Realtime Database a permissao cascateia, entao liberar o $id daria ao admin o poder de forjar o voto dos outros.",
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['tipo', 'autor', 'ts'])",
+        "votos": {
+          "$steamid": {
+            "//": "So ORGANIZADOR vota, e so no proprio voto. Master nao vota (decide direto).",
+            ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador' && $steamid === auth.token.email.replace('@mamometro.gg', '')",
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "status": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'",
+          ".validate": "newData.isString()"
+        },
+        "aplicadaEm": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'"
+        },
+        "aplicadaPor": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'"
+        }
+      }
+    },
     "gsi": {
       "live": {
-        "//": "Acumulado da partida em andamento. A function do GSI grava sem login (o CS2 nao tem conta), por isso fica aberto — mas some ao fim da partida.",
+        "//": "Partida em andamento. A function do GSI grava sem login (o CS2 nao tem conta).",
         "$steamid": {
           ".read": true,
           ".write": true,
@@ -21,7 +72,6 @@
         }
       },
       "pending": {
-        "//": "Resultados aguardando confirmacao do organizador. Criar pode sem login (vem da function); ler e apagar exige conta.",
         ".read": "auth != null",
         "$id": {
           ".write": "auth != null || !data.exists()",

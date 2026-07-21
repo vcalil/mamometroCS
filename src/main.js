@@ -1,13 +1,19 @@
 import { ref, onValue } from "firebase/database";
 import { db, configurado } from "./firebase.js";
 import { aplicarSnapshot, resetarCarga } from "./state.js";
-import { aoMudarAuth } from "./auth.js";
-import { toggleLinha, trocarVisao } from "./ui/render.js";
+import { aoMudarAuth, definirPapeis } from "./auth.js";
+import { toggleLinha, trocarVisao, trocarSeason } from "./ui/render.js";
 import { mostrarSetup } from "./ui/setup.js";
 import * as admin from "./ui/admin.js";
 import * as conta from "./ui/conta.js";
 import { abrirAjuda } from "./ui/ajuda.js";
 import { setPendentes } from "./gsi-client.js";
+import { setSubmissoes } from "./submissoes.js";
+import { setPropostas } from "./propostas.js";
+import { setSeasons } from "./seasons.js";
+import * as enviar from "./ui/enviar.js";
+import * as aprov from "./ui/aprovacoes.js";
+import * as assembleia from "./ui/assembleia.js";
 
 function marcarLive(on) {
   const el = document.getElementById("live");
@@ -21,6 +27,7 @@ function marcarLive(on) {
 Object.assign(window, {
   toggleLinha,
   trocarVisao,
+  trocarSeason,
   abrirAjuda,
   abrirAdmin: admin.abrirAdmin,
   fecharOverlay: admin.fecharOverlay,
@@ -34,6 +41,7 @@ Object.assign(window, {
   removerDoTime: admin.removerDoTime,
   setStat: admin.setStat,
   salvarMeta: admin.salvarMeta,
+  addSeason: admin.addSeason,
   setDataPartida: admin.setDataPartida,
   salvarPartida: admin.salvarPartida,
   removerPartida: admin.removerPartida,
@@ -44,6 +52,7 @@ Object.assign(window, {
   // GSI
   usarGsi: admin.usarGsi,
   baixarCfgGsi: admin.baixarCfgGsi,
+  copiarCfgGsi: admin.copiarCfgGsi,
   descartarGsi: admin.descartarGsi,
   // conta (login/cadastro dos jogadores)
   abrirConta: conta.abrirConta,
@@ -53,6 +62,31 @@ Object.assign(window, {
   fazerEntrar: conta.fazerEntrar,
   reivindicar: conta.reivindicar,
   vincularCard: conta.vincularCard,
+  // enviar partida (qualquer usuário logado)
+  abrirEnviar: enviar.abrirEnviar,
+  fecharEnviar: enviar.fecharEnviar,
+  trocarTabEnviar: enviar.trocarTabEnviar,
+  addAoTimeEnv: enviar.addAoTimeEnv,
+  removerDoTimeEnv: enviar.removerDoTimeEnv,
+  setStatEnv: enviar.setStatEnv,
+  setDataEnv: enviar.setDataEnv,
+  usarGsiEnv: enviar.usarGsiEnv,
+  confirmarEnvio: enviar.confirmarEnvio,
+  importarJsonEnv: enviar.importarJsonEnv,
+  aplicarJsonEnv: enviar.aplicarJsonEnv,
+  // aprovações (organizador)
+  aprovar: aprov.aprovar,
+  recusar: aprov.recusar,
+  // assembleia (todos) e propostas
+  abrirAssembleia: assembleia.abrirAssembleia,
+  fecharAssembleia: assembleia.fecharAssembleia,
+  enviarSugestao: assembleia.enviarSugestao,
+  votarProposta: assembleia.votarProposta,
+  proporAdmin: assembleia.proporAdmin,
+  decidirMaster: assembleia.decidirMaster,
+  aplicarProposta: assembleia.aplicarProposta,
+  definirPapel: admin.definirPapel,
+  promoverDireto: admin.promoverDireto,
   criarNovoJogador: conta.criarNovoJogador,
   sairConta: conta.sairConta,
 });
@@ -98,6 +132,36 @@ if (configurado) {
         },
         () => marcarLive(false)
       )
+    );
+
+    // Quem pode aprovar (nó `admins`): permite trocar organizador pelo console.
+    desinscrever.push(
+      onValue(ref(db, "papeis"), (snap) => {
+        definirPapeis(snap.val() || {});
+        conta.renderConta();
+      })
+    );
+
+    // Fila de partidas enviadas pela galera, aguardando aprovação.
+    desinscrever.push(
+      onValue(ref(db, "submissoes"), (snap) => {
+        setSubmissoes(snap.val() || {});
+        if (document.getElementById("pn-aprov")) aprov.renderAprovacoes();
+      })
+    );
+
+    // Temporadas (calendário do CS2) e propostas em votação.
+    desinscrever.push(
+      onValue(ref(db, "seasons"), (snap) => {
+        setSeasons(snap.val());
+        conta.renderApp();
+      })
+    );
+    desinscrever.push(
+      onValue(ref(db, "propostas"), (snap) => {
+        setPropostas(snap.val() || {});
+        if (document.getElementById("pn-assemb")) assembleia.renderAssembleia();
+      })
     );
 
     // Resultados do GSI (kills/dano automáticos) chegando em tempo real.

@@ -1,20 +1,34 @@
 import {
   dados,
-  salvar,
+  salvarJogadores,
+  salvarPartidas,
+  salvarMeta as salvarMetaDb,
   uid,
   nomeDe,
   escapar,
   bateuMeta,
   acharJogadorPorStat,
 } from "../state.js";
-import { ehAdmin } from "../auth.js";
+import {
+  ehAdmin,
+  ehMaster,
+  usuarioAtual,
+  steamIdDoUser,
+  listaPapeis,
+} from "../auth.js";
 import { render } from "./render.js";
+import { renderAprovacoes } from "./aprovacoes.js";
+import { criarProposta, votosNecessarios, temVotantes } from "../propostas.js";
+import { listaSeasons, salvarSeasons } from "../seasons.js";
+import { db } from "../firebase.js";
+import { ref, set } from "firebase/database";
 import { buscarPerfilSteam } from "../steam.js";
 import {
   listaPendentes,
   pendentePara,
   descartar as descartarGsiPendente,
   baixarCfg,
+  gerarCfg,
 } from "../gsi-client.js";
 
 // ---- helpers ----
@@ -49,20 +63,26 @@ export function abrirAdmin() {
     <div class="tabs">
       <div class="tab ativa" data-t="jog" onclick="trocarTab('jog')">Jogadores</div>
       <div class="tab" data-t="part" onclick="trocarTab('part')">Nova partida</div>
+      <div class="tab" data-t="aprov" onclick="trocarTab('aprov')">Aprovações</div>
       <div class="tab" data-t="hist" onclick="trocarTab('hist')">Histórico</div>
       <div class="tab" data-t="gsi" onclick="trocarTab('gsi')">GSI</div>
+      <div class="tab" data-t="cfg" onclick="trocarTab('cfg')">Config</div>
       <div class="tab" data-t="ajuda" onclick="trocarTab('ajuda')">Ajuda</div>
     </div>
     <div class="painel ativo" id="pn-jog"></div>
     <div class="painel" id="pn-part"></div>
+    <div class="painel" id="pn-aprov"></div>
     <div class="painel" id="pn-hist"></div>
     <div class="painel" id="pn-gsi"></div>
+    <div class="painel" id="pn-cfg"></div>
     <div class="painel" id="pn-ajuda"></div>
     <div class="row-btns" style="margin-top:20px"><button class="btn sec" onclick="fecharOverlay()">Fechar</button></div>`;
   renderJogadores();
   renderPartida();
   renderHistorico();
+  renderAprovacoes();
   renderGsi();
+  renderConfig();
   renderAjudaAdmin();
   abrirOverlay();
 }
@@ -172,7 +192,7 @@ export function confirmarSteam() {
     avatar: steamPreview.avatar || "",
     profileUrl: steamPreview.profileUrl || "",
   });
-  salvar();
+  salvarJogadores();
   steamPreview = null;
   renderJogadores();
   renderPartida();
@@ -192,7 +212,7 @@ export function addJogador() {
   const nome = inp.value.trim();
   if (!nome) return;
   dados.players.push({ id: uid(), name: nome });
-  salvar();
+  salvarJogadores();
   renderJogadores();
   renderPartida();
   render();
@@ -202,7 +222,7 @@ export function addJogador() {
 export function removerJogador(id) {
   if (!confirm("Remover esse jogador? As mamadas dele somem do ranking.")) return;
   dados.players = dados.players.filter((p) => p.id !== id);
-  salvar();
+  salvarJogadores();
   renderJogadores();
   renderPartida();
   render();
@@ -358,17 +378,35 @@ export function setStat(id, campo, valor) {
   atualizarPreview();
 }
 
-export function salvarMeta() {
+// A meta nunca muda direto: vira proposta, é decidida por votação dos
+// organizadores e executada pelo master. Nem o master altera por aqui.
+export async function salvarMeta() {
   const k = Number(document.getElementById("meta-kills").value);
   const d = Number(document.getElementById("meta-damage").value);
-  if (!Number.isFinite(k) || !Number.isFinite(d) || k < 0 || d < 0) {
+  if (!Number.isFinite(k) || !Number.isFinite(d) || k <= 0 || d <= 0) {
     alert("Coloque números válidos pra kills e dano.");
     return;
   }
-  dados.meta = { kills: k, damage: d };
-  salvar();
-  renderPartida();
-  render();
+  if (k === dados.meta.kills && d === dados.meta.damage) {
+    alert("Essa já é a meta atual.");
+    return;
+  }
+  const sid = steamIdDoUser(usuarioAtual());
+  const eu = dados.players.find((p) => p.steamId === sid);
+  try {
+    await criarProposta({
+      tipo: "meta",
+      titulo: `Meta vira ${k} kills e ${d} de dano`,
+      detalhe: `Hoje é ${dados.meta.kills} kills e ${dados.meta.damage} de dano.`,
+      valor: { kills: k, damage: d },
+      autor: { steamId: sid || "", nome: eu ? eu.name : "organizador" },
+    });
+    alert(
+      `Proposta criada. Precisa de ${votosNecessarios()} voto(s) de organizador — votem na aba Assembleia.`
+    );
+  } catch (e) {
+    alert("Não deu pra propor a meta: " + ((e && e.message) || ""));
+  }
 }
 
 export function setDataPartida(v) {
@@ -506,7 +544,7 @@ export function salvarPartida() {
     stats: statsArr,
     entries,
   });
-  salvar();
+  salvarPartidas();
   time = [];
   stats = {};
   renderPartida();
@@ -527,6 +565,21 @@ export function usarGsi(key, playerId) {
 // ---- Aba GSI (instruções + baixar .cfg + resultados pendentes) ----
 export function baixarCfgGsi() {
   baixarCfg();
+}
+// Copia o texto do .cfg. Alguns navegadores só liberam a Clipboard API em
+// HTTPS/contexto seguro — se falhar, seleciona o texto pro Ctrl+C manual.
+export async function copiarCfgGsi() {
+  const ta = document.getElementById("cfg-txt");
+  try {
+    await navigator.clipboard.writeText(gerarCfg());
+    alert("Texto do .cfg copiado! Cole num arquivo e salve como gamestate_integration_mamometro.cfg");
+  } catch {
+    if (ta) {
+      ta.focus();
+      ta.select();
+    }
+    alert("Não consegui copiar automaticamente. O texto já está selecionado — use Ctrl+C.");
+  }
 }
 export function descartarGsi(key) {
   if (confirm("Descartar esse resultado do GSI?")) descartarGsiPendente(key);
@@ -554,13 +607,21 @@ export function renderGsi() {
     <div class="aviso">
       <b>Automático (GSI):</b> cada jogador instala um arquivo uma vez e o CS2 passa a enviar kills e dano ao fim de cada partida. Só captura as <b>próprias</b> partidas de quem instalou, e só as <b>futuras</b>.
     </div>
-    <div class="row-btns"><button class="btn gold" onclick="baixarCfgGsi()">Baixar arquivo .cfg</button></div>
+    <div class="row-btns">
+      <button class="btn gold" onclick="baixarCfgGsi()">Baixar arquivo .cfg</button>
+      <button class="btn sec" onclick="copiarCfgGsi()">Copiar o texto</button>
+    </div>
     <label>Como instalar</label>
     <ol class="gsi-steps">
-      <li>Baixe o arquivo <code>gamestate_integration_mamometro.cfg</code> (botão acima).</li>
+      <li>Baixe o arquivo <code>gamestate_integration_mamometro.cfg</code> (botão acima)
+          — ou copie o texto abaixo e salve com esse nome exato.</li>
       <li>Coloque em: <code>Steam/steamapps/common/Counter-Strike Global Offensive/game/csgo/cfg/</code></li>
       <li>Reinicie o CS2. Pronto — ao terminar uma partida, os números chegam aqui.</li>
     </ol>
+    <label>Conteúdo do .cfg <span class="hint-inline">(já com a URL deste site)</span></label>
+    <textarea class="cfg-txt" id="cfg-txt" readonly rows="12"
+      onclick="this.select()">${escapar(gerarCfg())}</textarea>
+    <div class="hint">Salve como <code>gamestate_integration_mamometro.cfg</code> — inclusive a extensão <code>.cfg</code>, não <code>.txt</code>.</div>
     <label>Resultados recebidos</label>
     <div class="chip-list">${listaHtml}</div>`;
 }
@@ -651,7 +712,143 @@ export function renderHistorico() {
 export function removerPartida(id) {
   if (!confirm("Excluir essa partida? Recalcula o ranking.")) return;
   dados.matches = dados.matches.filter((m) => m.id !== id);
-  salvar();
+  salvarPartidas();
   renderHistorico();
   render();
+}
+
+
+// ---- Aba Config: papéis e temporadas ----
+const ROTULO_PAPEL = { master: "master", organizador: "organizador" };
+
+export function renderConfig() {
+  const el = document.getElementById("pn-cfg");
+  if (!el) return;
+  const papeis = listaPapeis();
+  const souMaster = ehMaster();
+  const nomeDoSteam = (sid) => {
+    const p = dados.players.find((x) => x.steamId === sid);
+    return p ? p.name : sid;
+  };
+
+  const linhas = Object.keys(papeis)
+    .sort((a, b) => (papeis[a] === "master" ? -1 : 1))
+    .map((sid) => {
+      const papel = papeis[sid];
+      const acoes = souMaster
+        ? `<button class="btn mini sec" onclick="definirPapel('${sid}','${
+            papel === "master" ? "organizador" : "master"
+          }')">virar ${papel === "master" ? "organizador" : "master"}</button>
+           <button class="btn mini sec" onclick="definirPapel('${sid}','')">remover</button>`
+        : "";
+      return `<div class="aprov-linha">
+        <span class="al-nome">${escapar(nomeDoSteam(sid))}</span>
+        <span class="vd ${papel === "master" ? "ok" : "amb"}">${ROTULO_PAPEL[papel] || papel}</span>
+        ${acoes}
+      </div>`;
+    })
+    .join("");
+
+  // Só quem já vinculou o card tem SteamID — sem isso não há como promover.
+  const candidatos = dados.players.filter((p) => p.steamId && !papeis[p.steamId]);
+  const opts = candidatos
+    .map((p) => `<option value="${p.id}">${escapar(p.name)}</option>`)
+    .join("");
+
+  const seasons = listaSeasons()
+    .map((s) => {
+      const f = (d) => (d || "").split("-").reverse().join("/");
+      return `<div class="chip"><span class="chip-nome">${escapar(s.nome)} · ${f(
+        s.inicio
+      )} – ${f(s.fim)}${s.fimEstimado ? " (estimado)" : ""}</span></div>`;
+    })
+    .join("");
+
+  const nVot = votosNecessarios();
+  const explicaVoto = temVotantes()
+    ? `Promoção por votação precisa de <b>${nVot}</b> voto(s) de organizador.`
+    : `Ainda não há organizadores pra votar — só o master consegue promover agora.`;
+
+  el.innerHTML = `
+    <div class="aviso">
+      <b>master</b>: faz tudo direto, mas <b>não vota</b> na assembleia.<br>
+      <b>organizador</b>: aprova partidas e <b>vota</b>.<br>
+      <b>comum</b>: envia partida e sugere na assembleia.
+    </div>
+
+    <label>Quem tem papel</label>
+    <div class="aprov-nums">${linhas || '<div class="aviso">Ninguém ainda.</div>'}</div>
+
+    <label style="margin-top:18px">Dar papel a alguém</label>
+    <div class="aviso">${explicaVoto}</div>
+    ${
+      candidatos.length
+        ? `<div style="display:flex;gap:8px;flex-wrap:wrap">
+             <select id="prom-jogador" style="flex:1;min-width:150px">${opts}</select>
+             ${
+               souMaster
+                 ? `<button class="btn mini gold" onclick="promoverDireto('organizador')">Organizador</button>
+                    <button class="btn mini gold" onclick="promoverDireto('master')">Master</button>`
+                 : `<button class="btn mini" onclick="proporAdmin()">Propor votação</button>`
+             }
+           </div>`
+        : `<div class="aviso">Ninguém disponível — só dá pra dar papel a quem já vinculou o card à Steam.</div>`
+    }
+
+    <label style="margin-top:22px">Temporadas do CS2</label>
+    <div class="aviso">A Valve não publica calendário por API, então as datas vêm das anunciadas por ela. Quando a próxima season for confirmada, adicione aqui.</div>
+    <div class="chip-list">${seasons}</div>
+    ${
+      souMaster
+        ? `<label>Adicionar temporada</label>
+    <div class="stat-row">
+      <span class="sr-nome"><input id="sea-nome" placeholder="Season 6"></span>
+      <input id="sea-ini" type="date">
+      <input id="sea-fim" type="date">
+      <button class="btn mini" onclick="addSeason()">Add</button>
+    </div>`
+        : `<div class="hint">Só o master edita temporadas.</div>`
+    }`;
+}
+
+// Master promove/rebaixa direto, sem passar por votação.
+export async function definirPapel(steamId, papel) {
+  if (!ehMaster()) return alert("Só o master pode mudar papéis.");
+  const nome = (dados.players.find((p) => p.steamId === steamId) || {}).name || steamId;
+  if (!papel && !confirm(`Remover o papel de ${nome}? Ele volta a ser usuário comum.`)) return;
+  try {
+    await set(ref(db, "papeis/" + steamId), papel || null);
+    renderConfig();
+    return true;
+  } catch (e) {
+    alert("Não deu pra mudar o papel: " + ((e && e.message) || ""));
+    return false;
+  }
+}
+
+export async function promoverDireto(papel) {
+  const sel = document.getElementById("prom-jogador");
+  if (!sel) return;
+  const p = dados.players.find((x) => x.id === sel.value);
+  if (!p || !p.steamId) return alert("Escolha alguém que já vinculou o card.");
+  // Só avisa sucesso se a gravação passou — antes o erro e o "ok" apareciam juntos.
+  const ok = await definirPapel(p.steamId, papel);
+  if (ok) alert(`${p.name} agora é ${papel}.`);
+}
+
+export function addSeason() {
+  const nome = document.getElementById("sea-nome").value.trim();
+  const inicio = document.getElementById("sea-ini").value;
+  const fim = document.getElementById("sea-fim").value;
+  if (!nome || !inicio || !fim) return alert("Preencha nome, início e fim.");
+  if (fim < inicio) return alert("O fim tem que ser depois do início.");
+  const lista = listaSeasons().slice();
+  lista.push({ id: "s" + Date.now().toString(36), nome, inicio, fim });
+  lista.sort((a, b) => a.inicio.localeCompare(b.inicio));
+  salvarSeasons(lista)
+    .then(() => {
+      alert("Temporada adicionada.");
+      renderConfig();
+    })
+    .catch((e) => alert("Não deu pra salvar: " + ((e && e.message) || "")));
 }

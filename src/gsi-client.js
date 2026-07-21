@@ -25,9 +25,23 @@ export function descartar(key) {
   if (db) return remove(ref(db, "gsi/pending/" + key));
 }
 
-// Monta o conteúdo do .cfg apontando pra ESTE site (location.origin).
+// URL pública do site. O .cfg roda dentro do CS2 do jogador, então NÃO pode
+// apontar pra location.origin quando o painel é aberto em localhost — o jogo
+// tentaria enviar pra máquina dele. VITE_SITE_URL manda; localhost é ignorado.
+const SITE_URL = (() => {
+  const cfg = (env.VITE_SITE_URL || "").trim().replace(/\/+$/, "");
+  if (cfg) return cfg;
+  const org = typeof location !== "undefined" ? location.origin : "";
+  return /localhost|127\.0\.0\.1/.test(org) ? "" : org;
+})();
+
+// True quando não dá pra montar uma URL que o CS2 consiga alcançar.
+export const cfgSemUrlPublica = () => !SITE_URL;
+
+// Monta o conteúdo do .cfg apontando pro site publicado.
 export function gerarCfg() {
-  const uri = `${location.origin}/.netlify/functions/gsi`;
+  const base = SITE_URL || "https://SEU-SITE.netlify.app";
+  const uri = `${base}/.netlify/functions/gsi`;
   return `"Mamometro CS - GSI"
 {
   "uri" "${uri}"

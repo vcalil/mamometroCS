@@ -1,9 +1,10 @@
 import { dados } from "./state.js";
+import { partidasDaSeason } from "./seasons.js";
 
 // Calcula os dois lados da moeda:
 //   rank      = quem mais MAMOU (deu) e pra quem
 //   rankLevou = quem mais FOI MAMADO (levou) e por quem
-export function estatisticas() {
+export function estatisticas(seasonId = "todas") {
   const deu = {},
     levou = {},
     paraQuem = {},
@@ -15,7 +16,7 @@ export function estatisticas() {
     paraQuem[p.id] = {};
     deQuem[p.id] = {};
   });
-  dados.matches.forEach((m) => {
+  partidasDaSeason(seasonId).forEach((m) => {
     (m.entries || []).forEach((e) => {
       if (deu[e.from] === undefined) return;
       deu[e.from]++;
@@ -42,5 +43,6 @@ export function estatisticas() {
     rank: monta(deu, paraQuem),
     rankLevou: monta(levou, deQuem),
     totalMamadas,
+    nPartidas: partidasDaSeason(seasonId).length,
   };
 }
