@@ -3,5 +3,6 @@ dist
 .env
 .env.local
 .env.bak*
+*-rtdb-export.json
 .netlify
 *.log

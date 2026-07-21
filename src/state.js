@@ -9,6 +9,32 @@ export const META_PADRAO = { kills: 15, damage: 1500 };
 // importam continuam enxergando a mesma referência.
 export const dados = { players: [], matches: [], meta: { ...META_PADRAO } };
 
+// ---- Sinal de "os dados já chegaram" -------------------------------------
+// As regras exigem login pra ler o banco, então logo após o cadastro/login o
+// primeiro snapshot ainda está a caminho. Quem precisa da lista de jogadores
+// (ex.: a tela de vincular card) tem que esperar — senão lê um array vazio.
+let carregado = false;
+let aguardando = [];
+
+export const dadosCarregados = () => carregado;
+
+// Resolve com true quando o snapshot chegar; false se estourar o tempo.
+export function aguardarDados(timeoutMs = 10000) {
+  if (carregado) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const t = setTimeout(() => resolve(false), timeoutMs);
+    aguardando.push(() => {
+      clearTimeout(t);
+      resolve(true);
+    });
+  });
+}
+
+// Chamado no logout: o próximo login espera o snapshot dele, não o do anterior.
+export function resetarCarga() {
+  carregado = false;
+}
+
 // Substitui o conteúdo a partir de um snapshot do Firebase (mutação in place).
 export function aplicarSnapshot(v) {
   dados.players = (v && v.players) || [];
@@ -18,6 +44,8 @@ export function aplicarSnapshot(v) {
     m && Number.isFinite(m.kills) && Number.isFinite(m.damage)
       ? { kills: m.kills, damage: m.damage }
       : { ...META_PADRAO };
+  carregado = true;
+  aguardando.splice(0).forEach((fn) => fn());
 }
 
 // Casa uma entrada (de JSON/import) com um jogador cadastrado: por SteamID

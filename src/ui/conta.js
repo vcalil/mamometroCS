@@ -1,4 +1,11 @@
-import { dados, salvar, uid, escapar } from "../state.js";
+import {
+  dados,
+  salvar,
+  uid,
+  escapar,
+  aguardarDados,
+} from "../state.js";
+import { buscarPerfilSteam } from "../steam.js";
 import { configurado } from "../firebase.js";
 import {
   cadastrar,
@@ -66,7 +73,11 @@ export function renderConta() {
     const orgBtn = ehAdmin()
       ? `<button class="btn-org" onclick="abrirAdmin()">Organizador</button>`
       : "";
-    el.innerHTML = `${orgBtn}<span class="conta-logado">${avImg(
+    // Sem card vinculado? Atalho pra reivindicar o do histórico a qualquer hora.
+    const vincBtn = p
+      ? ""
+      : `<button class="btn-org" onclick="vincularCard()">Vincular meu card</button>`;
+    el.innerHTML = `${vincBtn}${orgBtn}<span class="conta-logado">${avImg(
       p && p.avatar
     )}<span class="cn">${escapar(nome)}</span><button class="conta-sair" onclick="sairConta()">sair</button></span>`;
   } else {
@@ -153,6 +164,9 @@ export async function fazerCadastro() {
   btn.textContent = "Cadastrando...";
   try {
     perfilPendente = await cadastrar(steam, senha);
+    // Espera o primeiro snapshot: sem isso a lista de cards sai vazia.
+    btn.textContent = "Carregando cards...";
+    await aguardarDados();
     mostrarVinculo(); // escolher qual card é você (ou criar novo)
   } catch (e) {
     erro.textContent = msgErroAuth(e);
@@ -169,6 +183,9 @@ export async function fazerEntrar() {
   btn.textContent = "Entrando...";
   try {
     perfilPendente = await entrar(steam, senha);
+    // Mesma espera do cadastro: só dá pra saber se há card depois do snapshot.
+    btn.textContent = "Carregando...";
+    await aguardarDados();
     // Se já tem card vinculado, fecha; senão, oferece vincular.
     if (jogadorPorSteam(perfilPendente.steamId)) {
       perfilPendente = null;
@@ -181,6 +198,39 @@ export async function fazerEntrar() {
     btn.disabled = false;
     btn.textContent = "Entrar";
   }
+}
+
+// Oferece a tela de vínculo a quem está logado mas ainda não tem card.
+// Fica disponível enquanto houver gente do histórico sem dono — é o que
+// permite a galera antiga ir reivindicando os cards aos poucos.
+let vinculoOferecido = false;
+export function resetarOfertaVinculo() {
+  vinculoOferecido = false;
+}
+
+export async function garantirVinculo({ forcado = false } = {}) {
+  const user = usuarioAtual();
+  if (!user) return;
+  const sid = steamIdDoUser(user);
+  if (!sid) return;
+  if (vinculoOferecido && !forcado) return; // não reabre a cada snapshot
+  await aguardarDados();
+  if (jogadorPorSteam(sid)) return; // já vinculado, nada a fazer
+  vinculoOferecido = true;
+  if (!perfilPendente || perfilPendente.steamId !== sid) {
+    // Recupera nome/avatar da Steam (ex.: recarregou a página já logado).
+    try {
+      perfilPendente = await buscarPerfilSteam(sid);
+    } catch {
+      perfilPendente = { steamId: sid, name: "Jogador", avatar: "" };
+    }
+  }
+  mostrarVinculo();
+}
+
+// Botão do cabeçalho: reabre a tela mesmo que a pessoa já tenha fechado.
+export function vincularCard() {
+  garantirVinculo({ forcado: true });
 }
 
 // ---- Vínculo: reivindicar um card existente ou criar novo ----

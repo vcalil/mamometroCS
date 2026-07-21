@@ -1,6 +1,6 @@
 import { ref, onValue } from "firebase/database";
 import { db, configurado } from "./firebase.js";
-import { aplicarSnapshot } from "./state.js";
+import { aplicarSnapshot, resetarCarga } from "./state.js";
 import { aoMudarAuth } from "./auth.js";
 import { toggleLinha, trocarVisao } from "./ui/render.js";
 import { mostrarSetup } from "./ui/setup.js";
@@ -52,6 +52,7 @@ Object.assign(window, {
   fazerCadastro: conta.fazerCadastro,
   fazerEntrar: conta.fazerEntrar,
   reivindicar: conta.reivindicar,
+  vincularCard: conta.vincularCard,
   criarNovoJogador: conta.criarNovoJogador,
   sairConta: conta.sairConta,
 });
@@ -77,6 +78,8 @@ if (configurado) {
     if (!user) {
       // Deslogado: descarta os dados em memória pra não vazar pro próximo.
       aplicarSnapshot({});
+      resetarCarga();
+      conta.resetarOfertaVinculo();
       conta.renderApp();
       return;
     }
@@ -88,6 +91,8 @@ if (configurado) {
           aplicarSnapshot(snap.val() || {});
           marcarLive(true);
           conta.renderApp(); // muro de login x ranking, já com os dados novos
+          // Logado sem card do histórico? Oferece o vínculo (uma vez).
+          conta.garantirVinculo();
           // Se o painel estiver aberto, atualiza o histórico ao vivo.
           if (document.getElementById("pn-jog")) admin.renderHistorico();
         },
