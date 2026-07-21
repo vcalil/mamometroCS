@@ -4,7 +4,6 @@ import {
   cadastrar,
   entrar,
   sair,
-  aoMudarAuth,
   usuarioAtual,
   authPronto,
   ehAdmin,
@@ -28,9 +27,8 @@ function fechar() {
 const jogadorPorSteam = (sid) => dados.players.find((p) => p.steamId === sid);
 
 // ---- Início: escuta mudanças de login ----
-export function iniciarAuth() {
-  aoMudarAuth(() => renderApp());
-}
+// (O bootstrap em main.js assina a auth diretamente, pra amarrar os listeners
+// do banco ao login — as regras exigem sessão pra ler.)
 
 // Controla a tela: só mostra o ranking se estiver logado; senão, muro de login.
 export function renderApp() {

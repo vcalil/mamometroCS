@@ -1,0 +1,33 @@
+{
+  "rules": {
+    "//": "Regras do Realtime Database do Mamometro. Cole em: Firebase Console -> Realtime Database -> aba Regras -> Publicar.",
+
+    ".read": false,
+    ".write": false,
+
+    "estado": {
+      "//": "Ranking, jogadores, partidas e meta. So quem tem conta (login Steam + senha) le e grava.",
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "gsi": {
+      "live": {
+        "//": "Acumulado da partida em andamento. A function do GSI grava sem login (o CS2 nao tem conta), por isso fica aberto — mas some ao fim da partida.",
+        "$steamid": {
+          ".read": true,
+          ".write": true,
+          ".validate": "!newData.exists() || newData.hasChildren(['kills'])"
+        }
+      },
+      "pending": {
+        "//": "Resultados aguardando confirmacao do organizador. Criar pode sem login (vem da function); ler e apagar exige conta.",
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null || !data.exists()",
+          ".validate": "newData.hasChildren(['steamId', 'kills', 'damage', 'ts'])"
+        }
+      }
+    }
+  }
+}

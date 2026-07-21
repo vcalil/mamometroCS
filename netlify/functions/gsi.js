@@ -4,13 +4,14 @@
 // round_totaldmg de cada round) do JOGADOR LOCAL, e ao fim da partida grava um
 // resultado "pendente" pro admin confirmar.
 //
-// Estado intermediário e pendências ficam no Realtime Database via REST
-// (o banco está aberto, então a function escreve direto — sem Admin SDK).
+// Estado intermediário e pendências ficam no Realtime Database via REST, sem
+// Admin SDK: as regras liberam escrita anônima só em `gsi/*` (o CS2 não tem
+// login). O resto do banco exige sessão — ver firebase-rules.json.
 
 const TOKEN = process.env.GSI_TOKEN || "mamometro-gsi";
-const DB =
-  process.env.FIREBASE_DATABASE_URL ||
-  "https://SEU-PROJETO-default-rtdb.firebaseio.com";
+// Sem fallback de propósito: um padrão hardcoded faria a function gravar no
+// banco errado caso a variável não esteja setada no Netlify.
+const DB = process.env.FIREBASE_DATABASE_URL;
 
 const ok = () => ({ statusCode: 200, body: "ok" });
 
@@ -30,6 +31,10 @@ function dbPush(path, data) {
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") return { statusCode: 405, body: "POST only" };
+  if (!DB) {
+    console.error("FIREBASE_DATABASE_URL não configurada — GSI desativado.");
+    return { statusCode: 500, body: "db nao configurado" };
+  }
 
   let body;
   try {

@@ -91,6 +91,9 @@ export function msgErroAuth(e) {
     return `Senha muito curta (mínimo ${SENHA_MIN} caracteres).`;
   if (c === "auth/operation-not-allowed")
     return "Ative o provedor Email/Senha no console do Firebase (Authentication → Sign-in method).";
+  // O Authentication nem foi inicializado no projeto (falta clicar em "Começar").
+  if (c === "auth/configuration-not-found")
+    return "O Authentication ainda não foi ativado neste projeto do Firebase. No console: Authentication → Começar → Sign-in method → ative Email/Senha.";
   if (c === "auth/network-request-failed")
     return "Falha de rede. Tente de novo.";
   return (e && e.message) || "Não deu pra completar. Tente de novo.";

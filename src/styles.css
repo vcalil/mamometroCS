@@ -39,6 +39,16 @@ header.topo{
 .stat .n{font-family:"Space Mono",monospace;font-size:1.7rem;font-weight:700}
 .stat .l{color:var(--muted);font-size:.74rem;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
 
+/* Alternador de visão: quem mais mamou x quem mais foi mamado */
+.switch{display:flex;gap:6px;margin-bottom:22px;background:var(--panel);border:1px solid var(--line);border-radius:99px;padding:4px}
+.sw{flex:1;background:transparent;border:none;color:var(--muted);font-family:"Inter",sans-serif;font-weight:700;font-size:.82rem;padding:10px 8px;border-radius:99px;cursor:pointer;transition:.15s}
+.sw:hover{color:var(--ink)}
+.sw.on{background:var(--coral);color:#2a0713}
+/* Na visão "foi mamado" as cores invertem: barra vira menta, detalhe vira coral */
+.linha.inv .barra>span{background:linear-gradient(90deg,var(--mint),#9df3d8)}
+.linha.inv .alvo .ab>span{background:var(--coral)}
+.linha.inv .alvo .ac{color:var(--coral)}
+
 .sec-titulo{
   font-family:"Anton",sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;
   font-size:1.15rem;margin:6px 0 14px;display:flex;align-items:center;gap:10px;
