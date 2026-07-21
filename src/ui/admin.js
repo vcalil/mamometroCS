@@ -15,6 +15,7 @@ import {
   usuarioAtual,
   steamIdDoUser,
   listaPapeis,
+  papelDe,
 } from "../auth.js";
 import { render } from "./render.js";
 import { renderAprovacoes } from "./aprovacoes.js";
@@ -103,12 +104,20 @@ export function renderJogadores() {
   const el = document.getElementById("pn-jog");
   if (!el) return;
   let chips = dados.players
-    .map(
-      (p) =>
-        `<div class="chip"><span class="chip-nome">${avImg(p.avatar)}${escapar(
-          p.name
-        )}</span><button class="x" onclick="removerJogador('${p.id}')">×</button></div>`
-    )
+    .map((p) => {
+      // Papel e vínculo com a Steam ficam à vista: é o que explica quem pode
+      // o quê, e quem ainda não dá pra promover.
+      const papel = papelDe(p.steamId);
+      const selo = papel
+        ? `<span class="vd ${papel === "master" ? "ok" : "amb"}">${papel}</span>`
+        : `<span class="vd sem">comum</span>`;
+      const semSteam = p.steamId
+        ? ""
+        : `<span class="vd dif" title="Ainda não entrou com a Steam — não pode receber papel">sem conta</span>`;
+      return `<div class="chip"><span class="chip-nome">${avImg(p.avatar)}${escapar(
+        p.name
+      )}</span>${selo}${semSteam}<button class="x" onclick="removerJogador('${p.id}')">×</button></div>`;
+    })
     .join("");
   if (!chips) chips = `<div class="aviso">Nenhum jogador ainda. Adicione a galera.</div>`;
   el.innerHTML = `<label>Nome do jogador</label>

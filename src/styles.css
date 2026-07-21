@@ -25,6 +25,7 @@ header.topo{
 .marca h1 .o{color:var(--coral)}
 .marca .tag{color:var(--muted);font-size:.82rem;letter-spacing:2px;text-transform:uppercase;margin-top:8px}
 .btn-org{
+  display:inline-flex;align-items:center;justify-content:center;
   background:transparent;border:1px solid var(--line);color:var(--muted);
   font-family:"Inter";font-size:.8rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;
   padding:9px 14px;border-radius:999px;cursor:pointer;transition:.15s;white-space:nowrap;
@@ -167,6 +168,11 @@ input:focus,select:focus{outline:none;border-color:var(--coral)}
 
 /* ===== Conta (login/cadastro do jogador) no cabeçalho ===== */
 .topo-acoes{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* #conta é um <span>: sem isto os botões dentro dele caem no baseline do
+   texto e desalinham do "Como funciona", que é filho direto do flex. */
+#conta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* Mesma altura pra tudo que fica na barra do topo */
+.topo-acoes .btn-org,.topo-acoes .conta-logado{min-height:38px}
 .conta-logado{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:5px 8px 5px 6px}
 .conta-logado .av{width:26px;height:26px}
 .conta-logado .cn{font-size:.82rem;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -267,3 +273,8 @@ input:focus,select:focus{outline:none;border-color:var(--coral)}
 .sb-per{color:var(--muted);font-size:.76rem;font-family:"Space Mono",monospace}
 .sb-per i{font-style:normal;opacity:.75}
 .ok-aviso{border-color:rgba(75,227,176,.45)}
+
+/* Selos de papel dentro dos chips de jogador: o nome ocupa a sobra e os
+   selos ficam encostados no × (o .chip usa space-between). */
+.chip .chip-nome{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip .vd{flex:none;white-space:nowrap}
