@@ -1,279 +1,360 @@
-<h1 align="center">Mamômetro CS 🍼</h1>
+<div align="center">
 
-<p align="center">
-  <b>O ranking oficial das mamadas.</b><br>
-  Antes de jogar CS2, a galera combina uma <b>meta</b>. Quem <b>não bate</b> a meta
-  “mama” quem bateu — e isso vira ponto no ranking. 😈
-</p>
+# 🍼 Mamômetro CS
 
-<p align="center">
-  <img alt="Vite" src="https://img.shields.io/badge/Vite-Vanilla%20JS-646CFF?logo=vite&logoColor=white">
-  <img alt="Firebase" src="https://img.shields.io/badge/Firebase-Realtime%20DB%20%2B%20Auth-FFCA28?logo=firebase&logoColor=black">
-  <img alt="Netlify" src="https://img.shields.io/badge/Netlify-Functions-00C7B7?logo=netlify&logoColor=white">
-  <img alt="Steam" src="https://img.shields.io/badge/Steam-Web%20API%20%2B%20GSI-1b2838?logo=steam&logoColor=white">
-</p>
+**O ranking oficial das mamadas.**
+
+Antes de jogar CS2, a galera combina uma **meta**. Quem **não bate** "mama" todo mundo que bateu — e isso vira ponto no ranking. 😈
+
+![Vite](https://img.shields.io/badge/Vite-Vanilla%20JS-646CFF?logo=vite&logoColor=white)
+![Firebase](https://img.shields.io/badge/Firebase-Realtime%20DB%20%2B%20Auth-FFCA28?logo=firebase&logoColor=black)
+![Netlify](https://img.shields.io/badge/Netlify-Functions-00C7B7?logo=netlify&logoColor=white)
+![Steam](https://img.shields.io/badge/Steam-Web%20API%20%2B%20GSI-1b2838?logo=steam&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue)
+
+</div>
 
 ---
 
-## ✨ O que tem
+## O que é
 
-- 🏆 **Ranking ao vivo** — pódio da vergonha + classificação geral, sincronizado pra todos (Firebase).
-- 🎯 **Meta editável** — padrão 15 kills e 1500 de dano; o site julga sozinho quem bateu.
-- 🔒 **Login por Steam + senha** — o site é fechado: só quem entra vê o ranking. Cada um aparece com seu avatar.
-- 🎮 **Kills/dano de 3 jeitos** — na mão, importando um JSON, ou **automático via GSI** (o CS2 manda sozinho).
-- 🛡️ **Admins** — só Vini e Iago (por SteamID) abrem o painel do organizador.
-- 🐳 **Roda local com Docker** e faz **deploy no Netlify** num clique.
+Um placar privado para um grupo de amigos que joga CS2. A cada partida
+combina-se uma meta (padrão: **15 kills e 1500 de dano**). Quem fica abaixo
+"mama" cada um que atingiu — o site conta essas mamadas, monta o pódio e guarda
+o histórico por temporada.
 
-## 🧰 Stack
+Tudo sincroniza ao vivo: alguém lança a partida e o ranking muda na tela de
+todo mundo, sem recarregar.
 
-Vite (Vanilla JS, sem framework) · Firebase (Realtime Database + Authentication) ·
-Netlify Functions (Steam Web API + GSI) · Docker (dev local).
+## ✨ Funcionalidades
 
-## Como rodar localmente
+- 🏆 **Ranking ao vivo** — pódio, barras e detalhe de quem mamou quem
+- 🔄 **Duas visões** — quem mais mamou × quem mais foi mamado
+- 📅 **Temporadas** seguindo o calendário do Premier, com histórico por season
+- 🔒 **Login pela Steam** (perfil + senha), com avatar e nome oficiais
+- 📤 **Envio aberto** — qualquer um manda a partida; um organizador aprova
+- 🎮 **Três formas de lançar** — na mão, por JSON ou automático pelo CS2 (GSI)
+- ✅ **Conferência das kills** pelo Leetify
+- 👑 **Papéis** (comum / organizador / master) com permissão real no banco
+- 🗳️ **Assembleia** — sugestões o ano todo, votadas em dezembro
 
-São três jeitos — todos servem também a function do Steam. Antes de qualquer um,
-copie o `.env`:
+---
 
-```bash
-cp .env.example .env    # e preencha os valores (veja a seção Variáveis)
+## 🏗 Arquitetura
+
+```
+navegador (Vite, JS puro)
+   │
+   ├── Firebase Auth ......... login (e-mail sintético <steamid>@mamometro.gg)
+   ├── Realtime Database ..... estado, papéis, submissões, propostas, seasons
+   ├── api.leetify.com ....... conferência de kills (CORS liberado)
+   │
+   └── Netlify Functions
+        ├── steam-profile ..... resolve perfil da Steam (a key fica no servidor)
+        └── gsi ............... recebe o Game State Integration do CS2
 ```
 
-**1. Docker (recomendado pra testar como fica pronto)**
+Sem framework de front-end: JavaScript modular com `onclick` inline apontando
+para funções expostas em `window` (ver `src/main.js`). A escolha foi manter o
+protótipo original funcionando enquanto o projeto crescia.
 
-```bash
-docker compose up --build
-# abra http://localhost:8888
+### Por que existem funções serverless
+
+Duas coisas não podem rodar no navegador:
+
+1. **Steam Web API** — a chave não pode ir para o cliente, e a Steam não envia
+   cabeçalhos CORS. `steam-profile` faz a chamada no servidor.
+2. **GSI** — o CS2 faz `POST` do estado do jogo para uma URL. Ele não tem
+   login, então precisa de um endpoint público que valide um token
+   compartilhado antes de gravar.
+
+### Estrutura
+
 ```
-O container builda o site e sobe um servidor Node que serve a página **e** a
-function do Steam. As variáveis vêm do `.env` automaticamente.
-
-**2. Node direto (sem Docker), igual ao Docker**
-
-```bash
-npm install
-npm run build
-npm run start           # http://localhost:8888
+src/
+  main.js .......... bootstrap, listeners do Firebase, handlers em window
+  firebase.js ...... config vinda das VITE_*
+  auth.js .......... login + papéis (master / organizador / comum)
+  state.js ......... estado compartilhado e gravações por ramo
+  stats.js ......... cálculo do ranking (deu / levou)
+  seasons.js ....... temporadas do CS2
+  submissoes.js .... fila de partidas aguardando aprovação
+  propostas.js ..... votação (promoção, meta, regra)
+  leetify.js ....... conferência de kills
+  steam.js ......... cliente da function de perfil
+  gsi-client.js .... pendências do GSI + geração do .cfg
+  ui/
+    render.js ...... ranking, pódio, seletor de temporada
+    conta.js ....... login, muro de entrada, vínculo de card
+    enviar.js ...... envio de partida (aberto a todos)
+    aprovacoes.js .. fila do organizador
+    assembleia.js .. propostas e votação
+    admin.js ....... painel do organizador
+    ajuda.js ....... guia dentro do site
+netlify/functions/
+  steam-profile.js . ResolveVanityURL + GetPlayerSummaries
+  gsi.js ........... acumula kills/dano e grava o resultado pendente
 ```
 
-**3. Modo dev com hot-reload (Netlify CLI)**
+---
 
-```bash
-npm install
-npm run dev             # netlify dev: Vite + Functions juntos
+## 🔐 Papéis e permissões
+
+| | comum | organizador | master |
+|---|---|---|---|
+| Ver o ranking (exige conta) | ✅ | ✅ | ✅ |
+| Enviar partida | ✅ | ✅ | ✅ |
+| Sugerir na assembleia | ✅ | ✅ | ✅ |
+| Lançar/aprovar partida | — | ✅ | ✅ |
+| **Votar** | — | ✅ | ❌ |
+| Promover organizador | — | por maioria | direto |
+| Alterar a meta | — | — | aplicando o que a votação decidiu |
+| Papéis e temporadas | — | — | ✅ |
+
+O **master não vota** por decisão de projeto: fica fora da assembleia para não
+desequilibrar a votação, mas pode decidir qualquer pauta diretamente quando ela
+empaca.
+
+As permissões são impostas pelas **regras do Realtime Database**, não apenas
+escondendo botões — ver [`REGRAS-FIREBASE.md`](REGRAS-FIREBASE.md) para o porquê
+de cada uma e os limites conhecidos.
+
+---
+
+## 🎮 Como uma partida entra no ranking
+
+```
+qualquer um envia → fila de submissões → organizador aprova → ranking
 ```
 
-> Se rodar só o Vite (`npm run vite`), o ranking funciona, mas o botão
-> "Buscar da Steam" não responde (a function não sobe nesse modo).
+A partida aprovada guarda **quem enviou, quando, quem aprovou e quando**.
 
-## Docker & Netlify — importante
+### As três formas de preencher
 
-O **Netlify não faz deploy de container Docker** (a plataforma é estática +
-serverless functions). Por isso o Docker aqui serve **só pra rodar/testar
-localmente**. O deploy no Netlify continua sendo pelo Git (veja abaixo) — os dois
-caminhos usam o mesmo código da function (`netlify/functions/steam-profile.js`).
+**1. Na mão** — monta o time e digita kills e dano; o ✅/❌ mostra na hora quem
+bateu a meta.
 
-## Variáveis de ambiente (`.env`)
+**2. Por JSON** — sobe um arquivo ou cola o texto:
 
-| Variável | Onde usar | O que é |
-|---|---|---|
-| `VITE_FIREBASE_*` | navegador | Config web do Firebase (é pública por natureza; a proteção real são as **regras** do Realtime Database) |
-| `VITE_ADMIN_STEAMIDS` | navegador | SteamIDs dos organizadores (Vini, Iago), separados por vírgula. Quem logar com esses perfis ganha o botão "Organizador" |
-| `STEAM_API_KEY` | **só servidor** (sem prefixo `VITE_`) | Chave da Steam Web API |
-| `GSI_TOKEN` / `VITE_GSI_TOKEN` | servidor / navegador | Token do GSI — **mesmo valor** nos dois |
-| `FIREBASE_DATABASE_URL` | **só servidor** | Onde a função GSI grava as pendências |
-
-### Chave da Steam (e o campo "Domain Name")
-
-Pegue a chave em <https://steamcommunity.com/dev/apikey> (precisa estar logado na
-sua conta Steam — só você consegue gerar a sua chave).
-
-A página pede um **Domain Name**. Esse campo é só um rótulo do acordo de uso: a
-Steam **não restringe** as chamadas da Web API por domínio, então a mesma chave
-funciona em `localhost` e no seu site do Netlify. Pode preencher com `localhost`
-(ou qualquer domínio, ex.: o do Netlify). Depois cole em `STEAM_API_KEY` no
-`.env` e teste em <http://localhost:8888>.
-
-## Adicionar jogador pela Steam
-
-No painel do organizador → aba **Jogadores** → **Adicionar da Steam**: cole a URL
-do perfil (`steamcommunity.com/id/...` ou `/profiles/...`) ou o SteamID64. O site
-busca **nome, avatar e SteamID** oficiais (só leitura, não mexe nos dados do
-jogador). Também dá pra adicionar jogador só pelo nome, sem Steam.
-
-## Login dos jogadores (contas)
-
-**O site é fechado por login:** quem não está logado cai direto na tela de
-**Entrar / Cadastrar** e só vê o ranking depois de entrar.
-
-Cada jogador entra com o **perfil da Steam + uma senha própria**. A identidade é
-a Steam; a senha é guardada com segurança pelo **Firebase Authentication**
-(Email/Senha) — **fora** do banco público, então nunca fica exposta. O "email" é
-sintético, derivado do SteamID (`<steamid>@mamometro.gg`), e nenhum email é
-enviado.
-
-**Ative o provedor uma vez** no console do Firebase:
-> Authentication → **Sign-in method** → habilite **Email/Senha**.
-
-Fluxo:
-- **Cadastrar**: cola o perfil da Steam + escolhe senha → o site pega avatar/nome
-  oficiais e cria a conta. Depois pede **qual card é você**: reivindica um
-  jogador antigo (ex.: o "Iago" que já existia) **ou** cria um card novo.
-- **Entrar**: perfil da Steam + senha.
-- Estar logado **só identifica** (aparece com avatar). Quem lança as partidas
-  continua sendo o **organizador**.
-
-**Organizadores (admins):** são os SteamIDs em `VITE_ADMIN_STEAMIDS` (Vini e
-Iago). Eles entram com a Steam como qualquer jogador e, por estarem na lista,
-ganham o botão **"Organizador"** que abre o painel. Não há mais senha de admin
-separada. Na plataforma, o botão **"Como funciona"** (topo) explica tudo pros
-jogadores, e a aba **Ajuda** dentro do painel explica pros organizadores.
-
-**Admin pré-cadastra, jogador cria a senha depois:** o organizador pode adicionar
-o jogador na aba **Jogadores → Adicionar da Steam**. Depois, essa pessoa entra em
-**Entrar → Cadastrar** com o mesmo perfil, **escolhe a senha** e cai direto no card
-que o admin criou (casado pelo SteamID) — não precisa reivindicar nada.
-
-## Meta e partidas
-
-A **meta** (padrão: **15 kills e 1500 de dano**) é editável pelo organizador na
-aba **Nova partida**. Ao lançar uma partida, o admin **digita kills e dano de
-cada jogador** e o site decide sozinho quem **bateu a meta** (≥ kills **E** ≥
-dano) — quem não bateu "mama" quem bateu. A meta usada fica registrada em cada
-partida no histórico.
-
-> Por que digitar na mão? A API oficial da Steam **não fornece kills nem dano por
-> partida** de CS2 (esses números só existem dentro da demo `.dem` da partida).
-> Testado: `GetPlayerSummaries` só dá perfil, `GetUserStatsForGame` volta vazio e
-> `GetNextMatchSharingCode` é bloqueado/só dá códigos, não estatísticas.
-
-## Kills e dano: dois caminhos
-
-**1. Manual (admin):** na aba **Nova partida** o organizador digita kills/dano de
-cada um. Sempre funciona, zero setup.
-
-**1b. Import por JSON (admin):** na mesma aba, dá pra **subir um `.json`** (ou colar
-o texto) e preencher time + kills + dano de uma vez. Casa cada entrada por
-**SteamID** ou **nome**; quem não bater aparece num aviso. Formato aceito (array
-puro ou objeto):
 ```json
 {
-  "date": "2026-07-13",
-  "meta": { "kills": 15, "damage": 1500 },
+  "date": "2026-07-20",
   "players": [
-    { "name": "Charlinho", "kills": 18, "damage": 2100 },
-    { "steamId": "7656119XXXXXXXXXX", "kills": 9, "damage": 1200 }
+    { "name": "Fire", "kills": 18, "damage": 2100 },
+    { "steamId": "7656...", "kills": 9, "damage": 1200 }
   ]
 }
 ```
 
-**2. Automático via GSI (Game State Integration):** oficial da Valve, seguro
-contra anti-cheat. Cada jogador instala **um arquivo** e o CS2 passa a enviar
-kills e dano ao fim de cada partida.
+O `name` casa com o elenco (maiúsculas não importam); `steamId` é mais seguro
+contra apelido trocado.
 
-Como funciona: o `.cfg` aponta pra função `/.netlify/functions/gsi`. Durante a
-partida o CS2 faz POST do estado; a função acumula **kills** (`match_stats.kills`)
-e **dano** (soma do `round_totaldmg` de cada round) do **jogador local** e, no fim,
-grava um resultado em `gsi/pending`. No painel do admin (aba **GSI**) os resultados
-aparecem, e na aba **Nova partida** cada jogador do time ganha um botão **“usar”**
-que preenche kills/dano automaticamente (o admin confirma e salva).
+**3. Automático (GSI)** — o jogador instala um `.cfg` na pasta do CS2 e o jogo
+passa a enviar kills e dano ao fim de cada partida. O painel gera o arquivo já
+com a URL do site (para baixar ou copiar o texto).
 
-Instalar (cada jogador, uma vez):
-1. Painel do organizador → aba **GSI** → **Baixar arquivo .cfg** (já vem com a URL
-   do site certa). Ou use `gsi/gamestate_integration_mamometro.cfg` do repositório
-   e troque a URL.
-2. Coloque em `.../Counter-Strike Global Offensive/game/csgo/cfg/`.
-3. Reinicie o CS2.
+O CS2 não expõe "dano total da partida" — só `round_totaldmg`, do round atual.
+A função guarda o maior valor visto em cada round e soma no fim. As kills vêm de
+`match_stats.kills`, que já é acumulado.
 
-Limites honestos: só captura as partidas **de quem instalou** e só as **futuras**
-(não é retroativo); e como o CS2 posta durante o jogo, precisa do site **publicado**
-(ou o CS2 rodando na mesma máquina que o `localhost`).
+> **Custo:** cada jogador com o `.cfg` gera requisições durante a partida. O
+> `throttle` está em `2.0` (~7.500 invocações por partida com 10 jogadores),
+> bem abaixo das 125.000/mês do plano gratuito do Netlify.
 
-Variáveis: `GSI_TOKEN` (função) e `VITE_GSI_TOKEN` (cliente) devem ter o **mesmo**
-valor; `FIREBASE_DATABASE_URL` diz à função onde gravar as pendências.
+---
 
-## Deploy (Netlify) — passo a passo
+## ✅ Conferência pelo Leetify
 
-[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/vcalil/mamometroCS)
+Ao enviar, o site consulta a API pública do Leetify e compara as **kills**
+declaradas com o histórico de quem tem perfil por lá:
 
-**Antes:** ative o provedor de login uma vez no Firebase
-(Authentication → Sign-in method → **Email/Senha**).
+| Selo | Significado |
+|---|---|
+| 🟢 confere | bateu com o declarado |
+| 🟡 ambíguo | houve mais de uma partida naquele dia |
+| 🔴 diverge | número diferente |
+| ⚪ sem dados | sem perfil ou sem partida no dia |
 
-1. **Suba o código pro GitHub** (repo privado serve). O `.env` **não** vai (está
-   no `.gitignore`) — as variáveis entram no painel do Netlify no passo 4.
-2. No **Netlify** → **Add new site → Import from Git** → escolha o repositório.
-   Build e publish já vêm do `netlify.toml` (`npm run build`, pasta `dist`,
-   functions em `netlify/functions`). Só confirmar.
-3. **Não conclua ainda** — vá em **Site configuration → Environment variables**.
-4. Cadastre estas variáveis (copie os valores do seu `.env`):
-   - `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
-     `VITE_FIREBASE_DATABASE_URL`, `VITE_FIREBASE_PROJECT_ID`,
-     `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`,
-     `VITE_FIREBASE_APP_ID`, `VITE_FIREBASE_MEASUREMENT_ID`
-   - `VITE_ADMIN_STEAMIDS` = `7656119XXXXXXXXXX,76561198119763313` (Vini, Iago)
-   - `STEAM_API_KEY` = sua chave da Steam
-   - `GSI_TOKEN` e `VITE_GSI_TOKEN` = **mesmo** valor (ex.: `mamometro-gsi`)
-   - `FIREBASE_DATABASE_URL` = a mesma URL do banco
-5. **Deploys → Trigger deploy → Deploy site** (pra pegar as variáveis).
-6. Pronto. Teste no domínio do Netlify:
-   - **Como funciona** (topo) abre o guia; **Entrar → Cadastrar** cria conta.
-   - Logue como Vini/Iago → aparece o botão **Organizador**.
-   - Functions ativas: `/.netlify/functions/steam-profile` e `/.netlify/functions/gsi`.
-7. **GSI (opcional):** cada jogador baixa o `.cfg` na aba GSI do painel (já vem
-   com a URL do site publicado) e põe em `.../csgo/cfg/`.
+**Limites medidos na API, não supostos:**
 
-> Domínio: o Netlify dá um `*.netlify.app`. Se trocar por domínio próprio depois,
-> nada muda no código — o `.cfg` do GSI é gerado com a URL atual do site.
+- `gameFinishedAt` tem precisão de **dia**, sem hora. Como é comum jogar várias
+  partidas no mesmo dia, a validação mostra **todos os candidatos** em vez de
+  escolher um — validação que chuta é pior que validação nenhuma.
+- O **dano não é público** (fica atrás de `isSensitiveDataVisible`), então só as
+  kills são conferidas.
+- Se a API falhar ou demorar, o envio segue normalmente. A conferência é um
+  extra e nunca trava ninguém.
 
-### Um amigo pode fazer o deploy do meu repo?
+> **Por que não csstats.gg:** não há API pública e o site responde `403` com
+> desafio do Cloudflare. Passar por ali exigiria burlar proteção anti-bot —
+> frágil, contra os termos deles, e quebraria sem aviso.
 
-**Sim** — se o repositório for público (ou você der acesso), qualquer um consegue
-conectar ele no Netlify. Mas tem detalhes importantes:
+---
 
-- **Vai pro Netlify DELE, não pro seu.** Ele cria um site na conta Netlify dele,
-  com **outra URL** (`*.netlify.app` diferente). Não é o "seu" site.
-- **Precisa das variáveis de ambiente.** O `.env` **não está no repo** (segredos
-  ficam de fora). Sem preencher as variáveis (Firebase, `STEAM_API_KEY`, etc.) no
-  painel do Netlify dele, o site builda mas **não funciona** (não conecta no banco
-  nem na Steam). Ou seja: o repo sozinho não vaza suas chaves. ✅
-- **Se ele usar as SUAS variáveis** (mesmo Firebase + mesma chave Steam), o site
-  dele aponta pro **mesmo banco** — mesmos dados, mesmo ranking, dois endereços.
-  Se ele usar um Firebase próprio, vira um mundo separado (dados zerados).
+## 📅 Temporadas
 
-**Quer que um amigo mexa/faça deploy do SEU site de verdade** (mesma URL, mesma
-conta)? Aí não é "subir o repo": você adiciona ele como **membro do seu time no
-Netlify** (Team settings → Members). Aí ele administra o site junto com você.
+A Valve **não expõe** o calendário do Premier por API — as datas saem de
+anúncios. O projeto já vem com as conhecidas, e o master adiciona a próxima
+quando for divulgada:
 
-Resumindo: repo público = qualquer um faz a **própria cópia** (precisa das chaves
-pra funcionar); pro seu site oficial, é convite de time no Netlify.
+| Season | Início | Fim |
+|---|---|---|
+| Season 3 | 15/07/2025 | 19/01/2026 |
+| Season 4 | 20/01/2026 | 05/07/2026 |
+| Season 5 | 06/07/2026 | ~05/01/2027 *(estimado)* |
 
-## Estrutura
+Fins não confirmados aparecem marcados como estimados na interface.
 
-```
-index.html                    # markup + carrega src/main.js
-src/
-  main.js                     # bootstrap, wiring do Firebase, handlers globais
-  firebase.js                 # config via import.meta.env
-  state.js                    # estado (dados), salvar(), helpers
-  stats.js                    # cálculo do ranking
-  steam.js                    # cliente da Netlify Function (Steam)
-  gsi-client.js               # pendências do GSI + geração do .cfg
-  auth.js                     # login dos jogadores (Firebase Auth Email/Senha via Steam)
-  ui/render.js                # visualizador (pódio + classificação)
-  ui/admin.js                 # painel do organizador + integração Steam
-  ui/conta.js                 # UI de entrar/cadastrar + reivindicar card + botão Organizador
-  ui/ajuda.js                 # guia público "Como funciona"
-  ui/setup.js                 # tela quando o Firebase não está configurado
-  styles.css
-netlify/functions/steam-profile.js   # backend Steam (ResolveVanityURL + GetPlayerSummaries)
-netlify/functions/gsi.js             # recebe o GSI do CS2 e acumula kills/dano
-gsi/gamestate_integration_mamometro.cfg  # .cfg de referência (o painel gera com a URL certa)
-server.js                     # servidor local (Docker / npm run start): site + function
-Dockerfile                    # build do site + runtime enxuto (Node)
-docker-compose.yml            # docker compose up --build -> localhost:8888
+---
+
+## 🚀 Rodando o seu
+
+### 1. Firebase
+
+1. Crie um projeto em [console.firebase.google.com](https://console.firebase.google.com) (pode dispensar o Analytics)
+2. **Build → Realtime Database → Criar banco** — ⚠️ *Realtime Database*, **não** Firestore. Comece em modo de teste; as regras entram no passo 5
+3. **Authentication → Começar → Sign-in method → Email/Senha → Ativar**
+4. ⚙️ **Configurações do projeto → Seus apps → `</>`** e registre um app web
+
+> Crie o banco **antes** de registrar o app, senão a config vem sem
+> `databaseURL`.
+
+### 2. Chave da Steam
+
+Pegue em [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
+Ela fica **só no servidor** — nunca com prefixo `VITE_`.
+
+### 3. Variáveis
+
+```bash
+cp .env.example .env
 ```
 
-## Fora de escopo (fase futura)
+```env
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_DATABASE_URL=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+VITE_FIREBASE_MESSAGING_SENDER_ID=...
+VITE_FIREBASE_APP_ID=...
 
-Importar partidas de CS2 automaticamente e julgar a meta sozinho: não há API
-oficial simples pra scoreboard de CS2 — dependeria de serviço terceiro
-(csstats.gg etc.) ou match-sharing codes + Game Coordinator. Fica pra depois.
+VITE_SITE_URL=https://seu-site.netlify.app   # o .cfg do GSI aponta pra cá
+VITE_ADMIN_STEAMIDS=7656...,7656...          # semente de master
+
+STEAM_API_KEY=...                            # servidor, nunca VITE_
+GSI_TOKEN=algum-token                        # igual nos dois
+VITE_GSI_TOKEN=algum-token
+FIREBASE_DATABASE_URL=...                    # usada pela function do GSI
+```
+
+A config do Firebase é pública por natureza (vai para o navegador de qualquer
+forma) — a proteção real são as regras do banco. A chave da Steam é o segredo de
+verdade.
+
+### 4. Deploy no Netlify
+
+```bash
+npm install
+npx netlify login
+npx netlify sites:create --name seu-site
+npx netlify env:import .env          # ANTES do build
+npx netlify deploy --build --prod
+```
+
+> Importe as variáveis antes do primeiro build: as `VITE_*` são embutidas em
+> tempo de compilação, e sem elas o site nasce sem configuração.
+
+### 5. Fechar o banco
+
+Cole [`firebase-rules.json`](firebase-rules.json) em **Realtime Database →
+Regras → Publicar**.
+
+O "modo de teste" deixa o banco aberto para a internet inteira **e expira numa
+data fixa**, derrubando o site sem aviso quando vence.
+
+Depois crie o nó `papeis` na raiz, ao lado de `estado`:
+
+```json
+{ "7656119XXXXXXXXXX": "master" }
+```
+
+O valor é o **texto** `master` (ou `organizador`), não booleano.
+
+### 6. Autorizar o domínio
+
+**Authentication → Settings → Domínios autorizados** → adicione
+`seu-site.netlify.app`.
+
+Sem isso o login funciona em `localhost` e falha em produção — o que confunde
+bastante na hora de investigar.
+
+---
+
+## 💻 Desenvolvimento local
+
+```bash
+docker compose up --build     # http://localhost:8888 (site + functions)
+```
+
+Ou sem Docker:
+
+```bash
+npm install
+npm run dev                   # netlify dev: Vite + functions no mesmo host
+```
+
+| Script | O que faz |
+|---|---|
+| `npm run dev` | Vite + Netlify Functions |
+| `npm run vite` | só o front |
+| `npm run build` | build de produção em `dist/` |
+| `npm start` | serve `dist/` + functions (usado no Docker) |
+
+`localhost` já vem autorizado no Firebase Auth. O `.cfg` do GSI usa
+`VITE_SITE_URL` mesmo em desenvolvimento — apontar o CS2 para `localhost`
+enviaria os dados para a máquina do próprio jogador.
+
+---
+
+## 🗄 Modelo de dados
+
+```
+estado/
+  players[]   { id, name, steamId?, avatar?, profileUrl? }
+  matches[]   { id, date, entries[{from,to}], stats?,
+                enviadoPor, enviadoEm, aprovadoPor, aprovadoEm }
+  meta        { kills, damage }
+papeis/       { <steamid>: "master" | "organizador" }
+seasons[]     { id, nome, inicio, fim, fimEstimado? }
+submissoes/   { date, entries, stats, autor, origem, validacao, ts }
+propostas/    { tipo, titulo, detalhe, valor, autor, votos{}, status, ts }
+gsi/
+  live/       acumulado da partida em andamento
+  pending/    resultados aguardando uso
+```
+
+Cada ramo de `estado` é gravado separadamente (`salvarJogadores`,
+`salvarPartidas`, `salvarMeta`) porque as permissões diferem por ramo — um
+`set()` no nó inteiro seria recusado.
+
+---
+
+## ⚠️ Limitações conhecidas
+
+- **Kills e dano não vêm da Steam.** `GetUserStatsForGame` retorna vazio para
+  CS2 e `GetNextMatchSharingCode` responde `403`. Daí o GSI e a entrada manual.
+- **O GSI só captura quem instalou o `.cfg`**, e só partidas futuras.
+- **O Leetify não expõe dano** no perfil público.
+- **As regras não sabem contar votos.** Para a maioria aplicar uma promoção
+  sozinha, o organizador tem permissão de criar *um organizador novo* — nunca
+  master, nunca alterar ou remover quem já tem papel. É o menor dano possível
+  para esse comportamento; detalhes em [`REGRAS-FIREBASE.md`](REGRAS-FIREBASE.md).
+- **Um organizador grava partidas diretamente**, por design (é rotina diária).
+  A fila de aprovação existe para quem *não* é organizador.
+
+---
+
+## 📄 Licença
+
+MIT — ver [LICENSE](LICENSE).
