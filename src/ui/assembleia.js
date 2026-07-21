@@ -109,8 +109,9 @@ function cardProposta(p, janelaAberta) {
     : `<span class="vd amb">${sim}/${precisa} votos</span>`;
 
   // Só ORGANIZADOR vota. Master é excluído de propósito — ele decide direto.
-  // Promoção e meta não esperam dezembro; regra da assembleia espera.
-  const naJanela = p.tipo === "admin" || p.tipo === "meta" || janelaAberta;
+  // Pauta de assembleia (meta e regra) só é votada em dezembro. Promoção é
+  // operacional e não espera — e o master resolve qualquer uma a qualquer hora.
+  const naJanela = p.tipo === "admin" || janelaAberta;
   const podeVotar = ehOrganizador() && !fechada && naJanela;
 
   let botoes = "";
@@ -124,10 +125,17 @@ function cardProposta(p, janelaAberta) {
     }</button>
       </div>`;
   } else if (ehOrganizador() && !fechada) {
-    botoes = `<div class="hint">Votação desta pauta abre em dezembro.</div>`;
+    botoes = `<div class="hint">Pauta de assembleia: a votação abre em dezembro.</div>`;
   } else if (ehMaster() && !fechada) {
     // Master não vota, mas destrava o que a votação não conseguiu fechar.
-    botoes = `<div class="hint">Você é master: não vota, mas pode decidir direto.</div>
+    const faltam = Math.max(0, precisa - sim);
+    botoes = `<div class="hint">Você é master: não vota, mas pode decidir direto.${
+      precisa
+        ? faltam
+          ? ` A votação está em <b>${sim}/${precisa}</b> — faltam ${faltam}.`
+          : " A votação já tem maioria."
+        : " Ainda não há organizadores pra votar."
+    }</div>
       <div class="row-btns">
         <button class="btn mini gold" onclick="decidirMaster('${p.key}',true)">Aprovar direto</button>
         <button class="btn mini sec" onclick="decidirMaster('${p.key}',false)">Recusar direto</button>
@@ -203,10 +211,16 @@ export async function votarProposta(key, sim) {
     const p = listaPropostas().find((x) => x.key === key);
     if (!p) return renderAssembleia();
     const atual = { ...p, votos: { ...(p.votos || {}), [sid]: sim } };
-    // A votação só DECIDE. Executar o efeito é do master (permissão dele).
     if (temMaioria(atual)) {
       await marcarStatus(key, "aprovada");
-      alert("Maioria atingida! A proposta foi aprovada — um master vai aplicar.");
+      // Promoção a organizador a maioria já aplica sozinha. Meta e regra
+      // continuam com o master, que é quem tem permissão de gravá-las.
+      if (p.tipo === "admin") {
+        await aplicar(atual);
+        alert(`Maioria atingida! ${(p.valor && p.valor.nome) || "O jogador"} já é organizador.`);
+      } else {
+        alert("Maioria atingida! A proposta foi aprovada — um master vai aplicar.");
+      }
     }
     renderAssembleia();
   } catch (e) {
