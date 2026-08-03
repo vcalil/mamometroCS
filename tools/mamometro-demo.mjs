@@ -96,7 +96,16 @@ function ultimoTick(f) {
 // EXATAMENTE os números da tabela do CS2 (dano só a inimigos, sem fogo amigo).
 function porTotais(f, tick) {
   if (!tick) return null;
-  const props = ["kills_total", "assists_total", "deaths_total", "damage_total"];
+  const props = [
+    "kills_total",
+    "assists_total",
+    "deaths_total",
+    "damage_total",
+    "utility_damage_total",
+    "enemies_flashed_total",
+    "headshot_kills_total",
+    "mvps",
+  ];
   let rows;
   try {
     rows = parseTicks(f, props, [tick]);
@@ -105,6 +114,7 @@ function porTotais(f, tick) {
   }
   if (!Array.isArray(rows) || !rows.length) return null;
 
+  const num = (v) => Number(v) || 0;
   const porSid = new Map();
   for (const r of rows) {
     const sid = String(r.steamid || r.steam_id || "");
@@ -113,14 +123,37 @@ function porTotais(f, tick) {
     porSid.set(sid, {
       name: r.name || sid,
       steamId: sid,
-      kills: Number(r.kills_total) || 0,
-      damage: Number(r.damage_total) || 0,
+      kills: num(r.kills_total),
+      deaths: num(r.deaths_total),
+      assists: num(r.assists_total),
+      damage: num(r.damage_total),
+      utilityDamage: num(r.utility_damage_total),
+      enemiesFlashed: num(r.enemies_flashed_total),
+      hsKills: num(r.headshot_kills_total),
+      mvps: num(r.mvps),
     });
   }
   const lista = [...porSid.values()];
   // Se ninguém tem dano, o prop não existe nesta versão — deixa o fallback agir.
   if (!lista.length || lista.every((p) => p.damage === 0)) return null;
   return lista;
+}
+
+// Assistências de flash ("com granada"): player_death com assistedflash.
+function flashAssistsPorSid(f) {
+  const out = {};
+  let deaths = [];
+  try {
+    deaths = parseEvent(f, "player_death") || [];
+  } catch {
+    return out;
+  }
+  for (const e of deaths) {
+    if (!e.assistedflash) continue;
+    const sid = String(e.assister_steamid || "");
+    if (ehSteamValido(sid)) out[sid] = (out[sid] || 0) + 1;
+  }
+  return out;
 }
 
 // Fallback: soma os eventos. player_death → kills; player_hurt → dano.
@@ -196,6 +229,10 @@ if (!jogadores || !jogadores.length) {
   process.exit(1);
 }
 
+// Assistências de flash (assist com granada) vêm dos eventos, não dos totais.
+const flash = flashAssistsPorSid(file);
+jogadores.forEach((p) => (p.flashAssists = flash[p.steamId] || 0));
+
 jogadores.sort((a, b) => b.kills - a.kills || b.damage - a.damage);
 
 const saida = {
@@ -218,11 +255,13 @@ try {
 
 // Resumo legível no stderr (não polui o JSON do stdout).
 console.error(`\n✔ ${jogadores.length} jogadores — fonte: ${fonte}${mapa ? ` — mapa: ${mapa}` : ""}`);
+console.error(`   ${"nome".padEnd(18)}  K/D/A     dano   🔦flash 💣util`);
 for (const p of jogadores) {
+  const kda = `${p.kills}/${p.deaths}/${p.assists}`;
   console.error(
-    `   ${p.name.padEnd(18).slice(0, 18)} ${String(p.kills).padStart(3)}k  ${String(
-      p.damage
-    ).padStart(5)} dano`
+    `   ${p.name.padEnd(18).slice(0, 18)} ${kda.padStart(8)} ${String(p.damage).padStart(6)}   ${String(
+      p.flashAssists
+    ).padStart(4)}  ${String(p.utilityDamage).padStart(5)}`
   );
 }
 console.error(`\n→ JSON salvo em: ${destino}`);

@@ -61,6 +61,16 @@ export function acharJogadorPorStat(e) {
   return null;
 }
 
+// Normaliza os stats de uma partida pra lista [{id, kills, damage, ...}].
+// Aceita array [{id,...}] (partida do admin) ou objeto {id:{...}} (envio).
+export function statsList(m) {
+  if (!m || !m.stats) return [];
+  if (Array.isArray(m.stats)) return m.stats.filter(Boolean);
+  if (typeof m.stats === "object")
+    return Object.entries(m.stats).map(([id, v]) => ({ id, ...(v || {}) }));
+  return [];
+}
+
 // Um jogador bateu a meta se atingiu kills E dano (comparado à meta dada).
 export function bateuMeta(stat, meta = dados.meta) {
   const k = Number(stat && stat.kills) || 0;

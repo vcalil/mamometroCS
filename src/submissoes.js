@@ -25,14 +25,15 @@ export function listaSubmissoes() {
 
 // Envia uma partida pra fila. `entries` = [{ from, to }] já calculado, e
 // `stats` guarda os números declarados pra o organizador conferir.
-export function enviarSubmissao({ date, entries, stats, autor, origem, validacao }) {
+export function enviarSubmissao({ date, entries, stats, map, autor, origem, validacao }) {
   if (!db) return Promise.resolve();
   return push(ref(db, "submissoes"), {
     date,
     entries,
     stats: stats || null,
+    map: map || null, // mapa da partida (quando veio da demo)
     autor, // { steamId, nome }
-    origem: origem || "manual", // manual | json | gsi
+    origem: origem || "manual", // manual | json | gsi | demo
     validacao: validacao || null, // resultado do Leetify (kills)
     ts: Date.now(),
   });
@@ -47,6 +48,7 @@ export async function aprovarSubmissao(key, aprovador) {
     date: s.date,
     entries: s.entries || [],
     stats: s.stats || null,
+    map: s.map || null,
     enviadoPor: s.autor || null,
     enviadoEm: s.ts || null,
     aprovadoPor: aprovador || null,

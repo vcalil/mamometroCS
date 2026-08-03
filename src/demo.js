@@ -63,10 +63,20 @@ function ultimoTick(parseEvent, bytes) {
   return null;
 }
 
-// Preferido: totais do placar (kills/dano acumulados) no último tick.
+// Preferido: totais do placar (KDA, dano, dano de granada, flashes) no último
+// tick — exatamente os números que o CS2 mostra na tabela.
 function porTotais(parseTicks, bytes, tick) {
   if (!tick && tick !== 0) return null;
-  const props = ["kills_total", "assists_total", "deaths_total", "damage_total"];
+  const props = [
+    "kills_total",
+    "assists_total",
+    "deaths_total",
+    "damage_total",
+    "utility_damage_total",
+    "enemies_flashed_total",
+    "headshot_kills_total",
+    "mvps",
+  ];
   let rows;
   try {
     rows = parseTicks(bytes, props, Int32Array.from([tick]));
@@ -75,6 +85,7 @@ function porTotais(parseTicks, bytes, tick) {
   }
   if (!Array.isArray(rows) || !rows.length) return null;
 
+  const num = (v) => Number(v) || 0;
   const porSid = new Map();
   for (const r of rows) {
     const sid = String(r.steamid || r.steam_id || "");
@@ -83,14 +94,38 @@ function porTotais(parseTicks, bytes, tick) {
     porSid.set(sid, {
       name: r.name || sid,
       steamId: sid,
-      kills: Number(r.kills_total) || 0,
-      damage: Number(r.damage_total) || 0,
+      kills: num(r.kills_total),
+      deaths: num(r.deaths_total),
+      assists: num(r.assists_total),
+      damage: num(r.damage_total),
+      utilityDamage: num(r.utility_damage_total),
+      enemiesFlashed: num(r.enemies_flashed_total),
+      hsKills: num(r.headshot_kills_total),
+      mvps: num(r.mvps),
     });
   }
   const lista = [...porSid.values()];
   // Se ninguém tem dano, o prop não existe nesta versão — deixa o fallback agir.
   if (!lista.length || lista.every((p) => p.damage === 0)) return null;
   return lista;
+}
+
+// Assistências de flash ("com granada"): mortes em que a pessoa cegou a vítima.
+// Conta os player_death com `assistedflash`, por assister. Retorna {sid: n}.
+function flashAssistsPorSid(parseEvent, bytes) {
+  const out = {};
+  let deaths = [];
+  try {
+    deaths = parseEvent(bytes, "player_death") || [];
+  } catch {
+    return out;
+  }
+  for (const e of deaths) {
+    if (!e.assistedflash) continue;
+    const sid = String(e.assister_steamid || "");
+    if (ehSteamValido(sid)) out[sid] = (out[sid] || 0) + 1;
+  }
+  return out;
 }
 
 // Fallback: soma os eventos. player_death → kills; player_hurt → dano.
@@ -117,29 +152,52 @@ function porEventos(parseEvent, bytes) {
     if (ehSteamValido(a) && a !== v) kills[a] = (kills[a] || 0) + 1;
   }
 
+  const mortes = {};
+  const assist = {};
+  for (const e of deaths) {
+    const v = String(e.user_steamid || "");
+    const as = String(e.assister_steamid || "");
+    if (ehSteamValido(v)) mortes[v] = (mortes[v] || 0) + 1;
+    if (ehSteamValido(as)) assist[as] = (assist[as] || 0) + 1;
+  }
+
+  const GRANADA = /grenade|molotov|inferno|incgrenade|hegrenade|flashbang/i;
   let hurts = [];
   try {
     hurts = parseEvent(bytes, "player_hurt") || [];
   } catch {
     hurts = [];
   }
+  const danoUtil = {};
   for (const e of hurts) {
     const a = String(e.attacker_steamid || "");
     const v = String(e.user_steamid || "");
     registra(a, e.attacker_name);
-    if (ehSteamValido(a) && a !== v) dano[a] = (dano[a] || 0) + (Number(e.dmg_health) || 0);
+    if (ehSteamValido(a) && a !== v) {
+      const d = Number(e.dmg_health) || 0;
+      dano[a] = (dano[a] || 0) + d;
+      if (GRANADA.test(String(e.weapon || ""))) danoUtil[a] = (danoUtil[a] || 0) + d;
+    }
   }
 
   const sids = new Set([
     ...Object.keys(nome),
     ...Object.keys(kills),
     ...Object.keys(dano),
+    ...Object.keys(mortes),
+    ...Object.keys(assist),
   ]);
   const lista = [...sids].filter(ehSteamValido).map((sid) => ({
     name: nome[sid] || sid,
     steamId: sid,
     kills: kills[sid] || 0,
+    deaths: mortes[sid] || 0,
+    assists: assist[sid] || 0,
     damage: dano[sid] || 0,
+    utilityDamage: danoUtil[sid] || 0,
+    enemiesFlashed: 0,
+    hsKills: 0,
+    mvps: 0,
   }));
   return lista.length ? lista : null;
 }
@@ -184,6 +242,12 @@ export async function lerDemo(file, onProgress) {
   if (!jogadores) {
     fonte = "eventos (kills/hurt)";
     jogadores = porEventos(parseEvent, bytes);
+  }
+
+  // Assistências de flash (assist com granada) vêm dos eventos, não dos totais.
+  if (jogadores) {
+    const flash = flashAssistsPorSid(parseEvent, bytes);
+    jogadores.forEach((p) => (p.flashAssists = flash[p.steamId] || 0));
   }
   if (!jogadores || !jogadores.length) {
     throw new Error(

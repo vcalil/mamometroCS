@@ -20,6 +20,7 @@ let origem = "manual";
 // Estado da leitura por demo (aba "Por demo"). Cada jogador lido guarda nome,
 // SteamID, kills e dano exatos, e o vínculo com um jogador do elenco.
 let dem = { players: [], ocupado: false };
+let mapaPartida = ""; // mapa lido da demo (só o caminho "Por demo" preenche)
 
 const nomeDoJogador = (id) => (dados.players.find((p) => p.id === id) || {}).name || "—";
 const avImg = (url) =>
@@ -41,6 +42,7 @@ export function abrirEnviar() {
   stats = {};
   origem = "manual";
   dem = { players: [], ocupado: false };
+  mapaPartida = "";
   dataPartida = new Date().toISOString().slice(0, 10);
   document.getElementById("modal").innerHTML = `
     <button class="close-x" onclick="fecharEnviar()">×</button>
@@ -236,6 +238,7 @@ export async function confirmarEnvio() {
       date: dataPartida,
       entries,
       stats: statsPorJogador,
+      map: mapaPartida || null,
       autor: { steamId: sid || "", nome: eu ? eu.name : "jogador" },
       origem,
       validacao,
@@ -288,15 +291,21 @@ export function aplicarJsonEnv() {
     return (erro.textContent = 'O JSON precisa de uma lista "players".');
 
   if (j.date) dataPartida = j.date;
+  mapaPartida = j.map || j.mapa || "";
   const naoAchou = [];
   lista.forEach((e) => {
     const p = acharJogadorPorStat(e);
     if (!p) return naoAchou.push(e.name || e.steamId || "?");
     if (!time.includes(p.id)) time.push(p.id);
-    stats[p.id] = {
+    const s = {
       kills: Number(e.kills) || 0,
       damage: Number(e.damage ?? e.dano) || 0,
     };
+    // Campos extras (KDA, granadas) se o JSON trouxer (ex.: gerado pelo CLI).
+    CAMPOS_EXTRA.forEach((k) => {
+      if (Number.isFinite(Number(e[k]))) s[k] = Number(e[k]);
+    });
+    stats[p.id] = s;
   });
   origem = "json";
   renderFormEnviar();
@@ -308,15 +317,32 @@ export function aplicarJsonEnv() {
 // Preenche o formulário da aba Partida a partir de uma lista já vinculada a
 // jogadores do elenco: [{ playerId, kills, damage }]. Usado pela leitura de
 // imagem (a aba JSON casa por nome e tem seu próprio caminho).
+// Campos extras (KDA, granadas) que a demo traz e a gente guarda junto do
+// stat de cada jogador — não afetam a meta, são informativos.
+const CAMPOS_EXTRA = [
+  "deaths",
+  "assists",
+  "utilityDamage",
+  "flashAssists",
+  "enemiesFlashed",
+  "hsKills",
+  "mvps",
+];
+
 function preencherStats(itens, date) {
   if (date) dataPartida = date;
-  itens.forEach(({ playerId, kills, damage }) => {
+  itens.forEach((it) => {
+    const { playerId, kills, damage } = it;
     if (!playerId) return;
     if (!time.includes(playerId)) time.push(playerId);
-    stats[playerId] = {
+    const s = {
       kills: Number.isFinite(Number(kills)) ? Number(kills) : undefined,
       damage: Number.isFinite(Number(damage)) ? Number(damage) : undefined,
     };
+    CAMPOS_EXTRA.forEach((k) => {
+      if (Number.isFinite(Number(it[k]))) s[k] = Number(it[k]);
+    });
+    stats[playerId] = s;
   });
   renderFormEnviar();
   trocarTabEnviar("env-form");
@@ -354,10 +380,12 @@ function gridDemo() {
               }>${escapar(p.name)}</option>`
           )
           .join("");
+      const kda = `${l.kills}/${l.deaths ?? 0}/${l.assists ?? 0}`;
+      const flash = l.flashAssists ? ` · 🔦${l.flashAssists}` : "";
       return `<div class="ocr-row ${l.playerId ? "" : "off"}">
         <div class="ocr-lida" title="SteamID ${escapar(l.steamId)}">${escapar(
         l.nome
-      )} <small>${l.kills}k · ${l.damage} dano</small></div>
+      )} <small>${kda} · ${l.damage} dano${flash}</small></div>
         <select class="ocr-bind" onchange="demBind(${i},this.value)">${opts}</select>
         <input type="number" min="0" class="ocr-k" value="${
           l.kills ?? ""
@@ -393,13 +421,21 @@ export async function demArquivo(input) {
   if (f.lastModified) dataPartida = new Date(f.lastModified).toISOString().slice(0, 10);
   try {
     const { players, map } = await lerDemo(f, pintar);
+    mapaPartida = map || "";
     dem.players = players.map((p) => {
       const jog = acharJogadorPorStat(p); // casa por SteamID (exato) ou nome
       return {
         nome: p.name,
         steamId: p.steamId,
         kills: p.kills,
+        deaths: p.deaths,
+        assists: p.assists,
         damage: p.damage,
+        utilityDamage: p.utilityDamage,
+        flashAssists: p.flashAssists,
+        enemiesFlashed: p.enemiesFlashed,
+        hsKills: p.hsKills,
+        mvps: p.mvps,
         playerId: jog ? jog.id : "",
       };
     });
@@ -431,7 +467,18 @@ export function demEditNum(i, campo, val) {
 export function demAplicar() {
   const itens = dem.players
     .filter((l) => l.playerId)
-    .map((l) => ({ playerId: l.playerId, kills: l.kills, damage: l.damage }));
+    .map((l) => ({
+      playerId: l.playerId,
+      kills: l.kills,
+      damage: l.damage,
+      deaths: l.deaths,
+      assists: l.assists,
+      utilityDamage: l.utilityDamage,
+      flashAssists: l.flashAssists,
+      enemiesFlashed: l.enemiesFlashed,
+      hsKills: l.hsKills,
+      mvps: l.mvps,
+    }));
   if (!itens.length) return;
   origem = "demo";
   preencherStats(itens, dataPartida);
