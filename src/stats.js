@@ -17,7 +17,14 @@ export function taxaMamada(seasonId = "todas") {
   const mamou = {};
   partidasDaSeason(seasonId).forEach((m) => {
     const entries = m.entries || [];
-    const participantes = new Set(m.stats ? Object.keys(m.stats) : []);
+    // `stats` pode ser array [{id,...}] (partida do admin) ou objeto
+    // {id:{...}} (partida enviada) — extrai os ids reais dos dois jeitos.
+    const participantes = new Set();
+    if (Array.isArray(m.stats)) {
+      m.stats.forEach((s) => s && s.id && participantes.add(s.id));
+    } else if (m.stats && typeof m.stats === "object") {
+      Object.keys(m.stats).forEach((id) => participantes.add(id));
+    }
     entries.forEach((e) => {
       if (e.from) participantes.add(e.from);
       if (e.to) participantes.add(e.to);

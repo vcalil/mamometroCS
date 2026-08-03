@@ -101,7 +101,50 @@ export function render() {
       <button class="sw ${
         visao === "levou" ? "on" : ""
       }" onclick="trocarVisao('levou')">Quem mais foi mamado</button>
+      <button class="sw ${
+        visao === "taxa" ? "on" : ""
+      }" onclick="trocarVisao('taxa')">Maior % de mamada</button>
     </div>`;
+
+  // Visão "taxa": ranking pela % de partidas (das que jogou) em que mamou.
+  // Normaliza por volume — quem joga pouco mas mama muito aparece no topo.
+  if (visao === "taxa") {
+    const lista = Object.entries(mm)
+      .map(([id, v]) => {
+        const p = dados.players.find((x) => x.id === id) || {};
+        return { id, name: p.name || nomeDe(id), avatar: p.avatar || "", ...v };
+      })
+      .sort(
+        (a, b) => b.pct - a.pct || b.jogos - a.jogos || a.name.localeCompare(b.name)
+      );
+    if (!lista.length) {
+      html += `<div class="vazio">Ainda não dá pra calcular — nenhuma partida com jogadores registrada.</div>`;
+    } else {
+      const maxPct = Math.max(1, ...lista.map((x) => x.pct));
+      html += `<div class="sec-titulo">Ranking de mamada 🍼</div>
+        <div class="dt" style="text-align:center;margin:-6px 0 12px">% das partidas que jogou em que mamou</div>
+        <div class="rank">`;
+      lista.forEach((r, i) => {
+        html += `<div class="linha"><div class="linha-top"><div class="pos">${
+          i + 1
+        }</div><div class="info"><div class="nm">${avImg(r.avatar)}${escapar(
+          r.name
+        )}</div><div class="barra"><span data-pct="${Math.round(
+          (r.pct / maxPct) * 100
+        )}"></span></div></div><div class="cont">${r.pct}<small>% · ${
+          r.mamou
+        }/${r.jogos}</small></div></div></div>`;
+      });
+      html += `</div>`;
+    }
+    alvo.innerHTML = html;
+    requestAnimationFrame(() =>
+      document
+        .querySelectorAll(".barra > span")
+        .forEach((s) => (s.style.width = s.dataset.pct + "%"))
+    );
+    return;
+  }
   if (totalMamadas > 0) {
     html += `<div class="sec-titulo">${t.podio}</div><div class="podio">`;
     topo.forEach((r, i) => {

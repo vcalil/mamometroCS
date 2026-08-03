@@ -34,6 +34,7 @@ Object.assign(window, {
   trocarTab: admin.trocarTab,
   addJogador: admin.addJogador,
   removerJogador: admin.removerJogador,
+  mesclarJogadores: admin.mesclarJogadores,
   buscarSteam: admin.buscarSteam,
   confirmarSteam: admin.confirmarSteam,
   limparSteam: admin.limparSteam,

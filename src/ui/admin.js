@@ -135,8 +135,99 @@ export function renderJogadores() {
       <div class="hint" style="margin-top:8px">Quem você adicionar aqui entra depois em <b>Entrar → Cadastrar</b> com o mesmo perfil e <b>cria a própria senha</b> (cai direto no card certo).</div>
     </div>
 
-    <div class="chip-list">${chips}</div>`;
+    <div class="chip-list">${chips}</div>
+
+    ${
+      dados.players.length >= 2
+        ? `<div class="steam-box">
+      <label style="margin-top:0">Mesclar duplicados</label>
+      <div class="hint">Se alguém ficou com <b>dois cards</b> (ex.: criou um novo em vez de escolher o antigo), junte-os: as partidas do duplicado passam pro que fica, e a conta Steam/avatar é copiada se faltar.</div>
+      <div class="steam-row">
+        <select id="merge-keep" style="flex:1;min-width:120px" title="Fica">${mergeOpts()}</select>
+        <select id="merge-remove" style="flex:1;min-width:120px" title="Duplicado (será removido)">${mergeOpts()}</select>
+        <button class="btn mini" onclick="mesclarJogadores()">Mesclar</button>
+      </div>
+      <div class="hint">Esquerda = <b>fica</b>. Direita = <b>duplicado</b> (removido).</div>
+    </div>`
+        : ""
+    }`;
   renderSteamSlot();
+}
+
+// Opções pros seletores de mescla (mostra se o card já tem Steam vinculada).
+function mergeOpts() {
+  return dados.players
+    .map(
+      (p) =>
+        `<option value="${p.id}">${escapar(p.name)}${
+          p.steamId ? " · steam" : " · sem conta"
+        }</option>`
+    )
+    .join("");
+}
+
+// Junta dois cards do mesmo jogador. Remapeia todas as partidas (entries e
+// stats, que podem ser array [{id,...}] do admin ou objeto {id:{...}} do envio)
+// do duplicado pro que fica, herda Steam/avatar se faltar, e remove o duplicado.
+export function mesclarJogadores() {
+  const manterId = (document.getElementById("merge-keep") || {}).value;
+  const removerId = (document.getElementById("merge-remove") || {}).value;
+  if (!manterId || !removerId || manterId === removerId)
+    return alert("Escolha dois cards diferentes: o que fica (esquerda) e o duplicado (direita).");
+  const manter = dados.players.find((p) => p.id === manterId);
+  const remover = dados.players.find((p) => p.id === removerId);
+  if (!manter || !remover) return;
+  if (
+    !confirm(
+      `Mesclar "${remover.name}" em "${manter.name}"?\n\n` +
+        `• As partidas de "${remover.name}" passam pra "${manter.name}".\n` +
+        `• A conta Steam/avatar é copiada pra "${manter.name}" se ele não tiver.\n` +
+        `• O card "${remover.name}" é removido.`
+    )
+  )
+    return;
+
+  dados.matches.forEach((m) => {
+    // entries: from/to
+    if (Array.isArray(m.entries)) {
+      m.entries.forEach((e) => {
+        if (e.from === removerId) e.from = manterId;
+        if (e.to === removerId) e.to = manterId;
+      });
+      // a mescla pode ter criado "mamada de si mesmo" — descarta.
+      m.entries = m.entries.filter((e) => e.from !== e.to);
+    }
+    // stats em array [{id,...}]
+    if (Array.isArray(m.stats)) {
+      const manterJaTem = m.stats.some((s) => s.id === manterId);
+      if (manterJaTem) {
+        m.stats = m.stats.filter((s) => s.id !== removerId);
+      } else {
+        m.stats.forEach((s) => {
+          if (s.id === removerId) s.id = manterId;
+        });
+      }
+    } else if (m.stats && typeof m.stats === "object") {
+      // stats em objeto {id:{...}}
+      if (m.stats[removerId]) {
+        if (!m.stats[manterId]) m.stats[manterId] = m.stats[removerId];
+        delete m.stats[removerId];
+      }
+    }
+  });
+
+  // Herda identidade Steam pro sobrevivente, se faltar.
+  if (!manter.steamId && remover.steamId) manter.steamId = remover.steamId;
+  if (!manter.avatar && remover.avatar) manter.avatar = remover.avatar;
+  if (!manter.profileUrl && remover.profileUrl) manter.profileUrl = remover.profileUrl;
+
+  dados.players = dados.players.filter((p) => p.id !== removerId);
+  salvarJogadores();
+  salvarPartidas();
+  renderJogadores();
+  renderPartida();
+  render();
+  alert(`Pronto — "${remover.name}" foi mesclado em "${manter.name}".`);
 }
 
 function renderSteamSlot() {
