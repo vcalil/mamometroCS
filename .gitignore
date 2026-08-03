@@ -6,3 +6,7 @@ dist
 *-rtdb-export.json
 .netlify
 *.log
+*.dem
+*.dem.bz2
+*.dem.info
+match730_*.json

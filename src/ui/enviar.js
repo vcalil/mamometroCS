@@ -10,11 +10,16 @@ import { usuarioAtual, steamIdDoUser } from "../auth.js";
 import { enviarSubmissao } from "../submissoes.js";
 import { validar } from "../leetify.js";
 import { pendentePara } from "../gsi-client.js";
+import { lerDemo } from "../demo.js";
 
 let time = [];
 let stats = {}; // { playerId: { kills, damage } }
 let dataPartida = new Date().toISOString().slice(0, 10);
 let origem = "manual";
+
+// Estado da leitura por demo (aba "Por demo"). Cada jogador lido guarda nome,
+// SteamID, kills e dano exatos, e o vínculo com um jogador do elenco.
+let dem = { players: [], ocupado: false };
 
 const nomeDoJogador = (id) => (dados.players.find((p) => p.id === id) || {}).name || "—";
 const avImg = (url) =>
@@ -35,6 +40,7 @@ export function abrirEnviar() {
   time = [];
   stats = {};
   origem = "manual";
+  dem = { players: [], ocupado: false };
   dataPartida = new Date().toISOString().slice(0, 10);
   document.getElementById("modal").innerHTML = `
     <button class="close-x" onclick="fecharEnviar()">×</button>
@@ -42,13 +48,16 @@ export function abrirEnviar() {
     <div class="sub">Qualquer um pode enviar. Um organizador confere e aprova antes de entrar no ranking.</div>
     <div class="tabs">
       <div class="tab ativa" data-t="env-form" onclick="trocarTabEnviar('env-form')">Partida</div>
+      <div class="tab" data-t="env-dem" onclick="trocarTabEnviar('env-dem')">Por demo</div>
       <div class="tab" data-t="env-json" onclick="trocarTabEnviar('env-json')">Por JSON</div>
       <div class="tab" data-t="env-ajuda" onclick="trocarTabEnviar('env-ajuda')">Como funciona</div>
     </div>
     <div class="painel ativo" id="pn-env-form"></div>
+    <div class="painel" id="pn-env-dem"></div>
     <div class="painel" id="pn-env-json"></div>
     <div class="painel" id="pn-env-ajuda"></div>`;
   renderFormEnviar();
+  renderDemoEnviar();
   renderJsonEnviar();
   renderAjudaEnviar();
   abrir();
@@ -296,6 +305,138 @@ export function aplicarJsonEnv() {
     alert(`Não encontrei no elenco: ${naoAchou.join(", ")}. Confira os nomes.`);
 }
 
+// Preenche o formulário da aba Partida a partir de uma lista já vinculada a
+// jogadores do elenco: [{ playerId, kills, damage }]. Usado pela leitura de
+// imagem (a aba JSON casa por nome e tem seu próprio caminho).
+function preencherStats(itens, date) {
+  if (date) dataPartida = date;
+  itens.forEach(({ playerId, kills, damage }) => {
+    if (!playerId) return;
+    if (!time.includes(playerId)) time.push(playerId);
+    stats[playerId] = {
+      kills: Number.isFinite(Number(kills)) ? Number(kills) : undefined,
+      damage: Number.isFinite(Number(damage)) ? Number(damage) : undefined,
+    };
+  });
+  renderFormEnviar();
+  trocarTabEnviar("env-form");
+}
+
+// ---- Aba Por demo (parser do .dem no navegador) ----
+export function renderDemoEnviar() {
+  const el = document.getElementById("pn-env-dem");
+  if (!el) return;
+  const tem = dem.players.length > 0;
+  el.innerHTML = `
+    <div class="aviso">Suba a <b>demo (.dem)</b> de uma partida — baixe pelo CS2 em
+    <b>Assistir → suas partidas → Baixar</b>. O site lê os números <b>exatos</b> do
+    placar (kills e dano de todos) aqui no seu navegador; o arquivo <b>não sobe</b> pra
+    lugar nenhum. Nada entra no ranking sem um organizador aprovar.</div>
+    <label>Arquivo .dem</label>
+    <input type="file" accept=".dem" id="dem-file" onchange="demArquivo(this)">
+    <div id="dem-status" class="ocr-status"></div>
+    <div id="dem-grid">${tem ? gridDemo() : ""}</div>`;
+}
+
+// Grade dos jogadores lidos da demo. Os do elenco já vêm casados pelo SteamID
+// (exato); adversários ficam em "ignorar". Números vêm exatos, mas dá pra editar.
+function gridDemo() {
+  const players = dados.players;
+  const linhas = dem.players
+    .map((l, i) => {
+      const opts =
+        `<option value="">— ignorar (adversário) —</option>` +
+        players
+          .map(
+            (p) =>
+              `<option value="${p.id}" ${
+                l.playerId === p.id ? "selected" : ""
+              }>${escapar(p.name)}</option>`
+          )
+          .join("");
+      return `<div class="ocr-row ${l.playerId ? "" : "off"}">
+        <div class="ocr-lida" title="SteamID ${escapar(l.steamId)}">${escapar(
+        l.nome
+      )} <small>${l.kills}k · ${l.damage} dano</small></div>
+        <select class="ocr-bind" onchange="demBind(${i},this.value)">${opts}</select>
+        <input type="number" min="0" class="ocr-k" value="${
+          l.kills ?? ""
+        }" placeholder="k" oninput="demEditNum(${i},'kills',this.value)">
+        <input type="number" min="0" class="ocr-d" value="${
+          l.damage ?? ""
+        }" placeholder="dano" oninput="demEditNum(${i},'damage',this.value)">
+      </div>`;
+    })
+    .join("");
+
+  const nBind = dem.players.filter((l) => l.playerId).length;
+  return `<div class="ocr-list">${linhas}</div>
+    <div class="hint">Os jogadores do elenco já vêm marcados pelo SteamID. Linhas em "ignorar" (adversários) não entram.</div>
+    <div class="row-btns">
+      <button class="btn gold" onclick="demAplicar()" ${
+        nBind ? "" : "disabled"
+      }>Preencher formulário (${nBind})</button>
+    </div>`;
+}
+
+export async function demArquivo(input) {
+  const f = input.files && input.files[0];
+  if (!f || dem.ocupado) return;
+  const status = document.getElementById("dem-status");
+  dem.ocupado = true;
+  dem.players = [];
+  document.getElementById("dem-grid").innerHTML = "";
+  const pintar = (msg) => {
+    if (status) status.textContent = msg;
+  };
+  // Data provável da partida = data do arquivo (a pessoa ajusta no formulário).
+  if (f.lastModified) dataPartida = new Date(f.lastModified).toISOString().slice(0, 10);
+  try {
+    const { players, map } = await lerDemo(f, pintar);
+    dem.players = players.map((p) => {
+      const jog = acharJogadorPorStat(p); // casa por SteamID (exato) ou nome
+      return {
+        nome: p.name,
+        steamId: p.steamId,
+        kills: p.kills,
+        damage: p.damage,
+        playerId: jog ? jog.id : "",
+      };
+    });
+    const nBind = dem.players.filter((l) => l.playerId).length;
+    pintar(
+      `Li ${players.length} jogadores${
+        map ? ` em ${map}` : ""
+      } — ${nBind} do elenco reconhecidos. Confira e preencha.`
+    );
+    document.getElementById("dem-grid").innerHTML = gridDemo();
+  } catch (e) {
+    pintar((e && e.message) || "Falhou ao ler a demo. Tente outra ou use a aba Partida na mão.");
+  } finally {
+    dem.ocupado = false;
+  }
+}
+
+export function demBind(i, playerId) {
+  if (dem.players[i]) dem.players[i].playerId = playerId || "";
+  document.getElementById("dem-grid").innerHTML = gridDemo();
+}
+
+export function demEditNum(i, campo, val) {
+  if (!dem.players[i]) return;
+  dem.players[i][campo === "kills" ? "kills" : "damage"] =
+    val === "" ? undefined : Number(val);
+}
+
+export function demAplicar() {
+  const itens = dem.players
+    .filter((l) => l.playerId)
+    .map((l) => ({ playerId: l.playerId, kills: l.kills, damage: l.damage }));
+  if (!itens.length) return;
+  origem = "demo";
+  preencherStats(itens, dataPartida);
+}
+
 // ---- Aba Como funciona ----
 export function renderAjudaEnviar() {
   const el = document.getElementById("pn-env-ajuda");
@@ -312,7 +453,15 @@ export function renderAjudaEnviar() {
       a meta de <b>${dados.meta.kills} kills e ${dados.meta.damage} de dano</b>.
       Os números aparecem no placar no fim da partida (tab de scoreboard).</p>
 
-      <h3>2) Por JSON (vários de uma vez)</h3>
+      <h3>2) Por demo (.dem) — o mais preciso</h3>
+      <p>Na aba <b>Por demo</b>, suba a <b>demo da partida</b> (no CS2: <b>Assistir →
+      suas partidas → Baixar</b>). O site lê os números <b>exatos</b> do placar —
+      kills e dano de <b>todos</b>, a partir de <b>uma pessoa só</b> — e já casa cada
+      um com o elenco pelo SteamID. A leitura roda no seu navegador: o arquivo
+      <b>não sobe</b> pra lugar nenhum. Adversários entram como "ignorar". Basta
+      um do grupo subir a demo de cada partida.</p>
+
+      <h3>3) Por JSON (vários de uma vez)</h3>
       <p>Na aba <b>Por JSON</b>, suba um arquivo ou cole o texto. Serve quando
       alguém já anotou tudo. Formato:</p>
       <pre class="guia-code">{
@@ -326,7 +475,7 @@ export function renderAjudaEnviar() {
       importam). Se você tiver o <code>steamId</code>, pode usar ele no lugar —
       é mais seguro contra apelido trocado.</p>
 
-      <h3>3) Automático pelo CS2 (.cfg)</h3>
+      <h3>4) Automático pelo CS2 (.cfg)</h3>
       <p>É o jeito que não dá trabalho: você instala <b>uma vez</b> um arquivo na
       pasta do CS2 e, ao fim de cada partida, o jogo manda suas kills e dano
       sozinho. Aí é só clicar em <b>“usar”</b> ao lado do seu nome.</p>

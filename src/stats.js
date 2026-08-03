@@ -1,6 +1,46 @@
 import { dados } from "./state.js";
 import { partidasDaSeason } from "./seasons.js";
 
+// ---- Taxa de mamada (rating de cada jogador) ------------------------------
+// A porcentagem de partidas, entre as que a pessoa JOGOU, em que ela MAMOU
+// (não bateu a meta e por isso mamou quem bateu). Normaliza pelo volume: quem
+// joga pouco mas mama quase sempre sobe; quem joga muito não infla só pelo
+// número de partidas.
+//
+//   pct = 100 * (partidas em que mamou) / (partidas que jogou)
+//
+// "Mamou numa partida" = aparece como `from` em alguma mamada dela. "Jogou" =
+// aparece nos números (stats) ou entre os envolvidos nas mamadas — assim
+// funciona também nas partidas antigas, que só têm entries e não têm stats.
+export function taxaMamada(seasonId = "todas") {
+  const jogos = {};
+  const mamou = {};
+  partidasDaSeason(seasonId).forEach((m) => {
+    const entries = m.entries || [];
+    const participantes = new Set(m.stats ? Object.keys(m.stats) : []);
+    entries.forEach((e) => {
+      if (e.from) participantes.add(e.from);
+      if (e.to) participantes.add(e.to);
+    });
+    const mamadoresNaPartida = new Set(entries.map((e) => e.from).filter(Boolean));
+    participantes.forEach((pid) => {
+      jogos[pid] = (jogos[pid] || 0) + 1;
+      if (mamadoresNaPartida.has(pid)) mamou[pid] = (mamou[pid] || 0) + 1;
+    });
+  });
+  const mapa = {};
+  dados.players.forEach((p) => {
+    if (jogos[p.id]) {
+      mapa[p.id] = {
+        pct: Math.round((100 * (mamou[p.id] || 0)) / jogos[p.id]),
+        jogos: jogos[p.id],
+        mamou: mamou[p.id] || 0,
+      };
+    }
+  });
+  return mapa; // { playerId: { pct, jogos, mamou } }
+}
+
 // Calcula os dois lados da moeda:
 //   rank      = quem mais MAMOU (deu) e pra quem
 //   rankLevou = quem mais FOI MAMADO (levou) e por quem

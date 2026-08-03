@@ -74,6 +74,11 @@ Object.assign(window, {
   confirmarEnvio: enviar.confirmarEnvio,
   importarJsonEnv: enviar.importarJsonEnv,
   aplicarJsonEnv: enviar.aplicarJsonEnv,
+  // enviar partida por foto do placar (OCR)
+  demArquivo: enviar.demArquivo,
+  demBind: enviar.demBind,
+  demEditNum: enviar.demEditNum,
+  demAplicar: enviar.demAplicar,
   // aprovações (organizador)
   aprovar: aprov.aprovar,
   recusar: aprov.recusar,

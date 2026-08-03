@@ -9,7 +9,13 @@ import {
 } from "../submissoes.js";
 import { render } from "./render.js";
 
-const ORIGEM_ROTULO = { manual: "na mão", json: "JSON", gsi: "CS2 (GSI)" };
+const ORIGEM_ROTULO = {
+  manual: "na mão",
+  json: "JSON",
+  gsi: "CS2 (GSI)",
+  imagem: "foto do placar",
+  demo: "demo do CS2",
+};
 
 // Traduz o resultado do Leetify pra um selo curto e honesto.
 function seloValidacao(v) {

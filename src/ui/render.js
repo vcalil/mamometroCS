@@ -1,5 +1,5 @@
 import { dados, nomeDe, escapar } from "../state.js";
-import { estatisticas } from "../stats.js";
+import { estatisticas, taxaMamada } from "../stats.js";
 import { configurado } from "../firebase.js";
 import { listaSeasons, seasonAtual } from "../seasons.js";
 
@@ -52,6 +52,7 @@ export function render() {
     seasonSel = sa ? sa.id : "todas";
   }
   const est = estatisticas(seasonSel);
+  const mm = taxaMamada(seasonSel); // { playerId: { pct, jogos, mamou } }
   const { totalMamadas } = est;
   const rank = visao === "deu" ? est.rank : est.rankLevou;
   const t = TEXTOS[visao];
@@ -142,7 +143,11 @@ export function render() {
       i + 1
     }</div><div class="info"><div class="nm">${avImg(r.avatar)}${escapar(
       r.name
-    )} <span class="chev">▼</span></div><div class="barra"><span data-pct="${pct}"></span></div></div><div class="cont">${
+    )}${
+      mm[r.id]
+        ? ` <span class="mm" title="Mamou em ${mm[r.id].mamou} de ${mm[r.id].jogos} partida(s) que jogou">🍼 ${mm[r.id].pct}%</span>`
+        : ""
+    } <span class="chev">▼</span></div><div class="barra"><span data-pct="${pct}"></span></div></div><div class="cont">${
       r.total
     }<small>${t.rot}</small></div></div><div class="detalhe"><div class="detalhe-in"><div class="dt">${t.det}</div>${det}</div></div></div>`;
   });
