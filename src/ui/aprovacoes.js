@@ -55,11 +55,9 @@ export function renderAprovacoes() {
           const p = dados.players.find((x) => x.id === pid);
           const sid = p && p.steamId;
           const v = sid && s.validacao ? s.validacao[sid] : null;
-          const kda = `${st.kills ?? "?"}/${st.deaths ?? 0}/${st.assists ?? 0}`;
-          const flash = st.flashAssists ? ` 🔦${st.flashAssists}` : "";
           return `<div class="aprov-linha">
             <span class="al-nome">${escapar(p ? p.name : "—")}</span>
-            <span class="al-num">${kda} · ${st.damage ?? "?"}d${flash}</span>
+            <span class="al-num">${st.kills ?? "?"}k / ${st.damage ?? "?"}d</span>
             ${seloValidacao(v)}
           </div>`;
         })
@@ -74,7 +72,6 @@ export function renderAprovacoes() {
           <div>
             <b>${dataFmt}</b> · ${nMamadas} mamada(s)
             <span class="ai-tag">${ORIGEM_ROTULO[s.origem] || s.origem || "?"}</span>
-            ${s.map ? `<span class="ai-tag">🗺️ ${escapar(s.map)}</span>` : ""}
           </div>
           <div class="ai-autor">enviado por <b>${escapar(
             (s.autor && s.autor.nome) || "?"

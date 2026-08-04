@@ -788,32 +788,25 @@ export function renderHistorico() {
       const meta = m.meta
         ? `<span class="hist-meta">meta ${m.meta.kills}k / ${m.meta.damage}d</span>`
         : "";
-      const mapaTag = m.map ? `<span class="hist-meta">🗺️ ${escapar(m.map)}</span>` : "";
       // stats pode ser array [{id,...}] (admin) ou objeto {id:{...}} (envio).
+      // Por ora mostramos só kills/dano — os campos extras (KDA, granadas,
+      // mapa) são salvos silenciosamente e ainda não exibidos.
       const lista = statsList(m);
       const statsHtml = lista.length
         ? `<div class="hist-stats">` +
           lista
-            .map((s) => {
-              const kda = `${s.kills}/${s.deaths ?? 0}/${s.assists ?? 0}`;
-              const extra = [
-                s.flashAssists ? `🔦${s.flashAssists}` : "",
-                s.utilityDamage ? `💣${s.utilityDamage}` : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return `<span class="hs">${escapar(nomeDe(s.id))}: ${kda} · ${
-                s.damage
-              }d${extra ? " " + extra : ""} ${
-                bateuMeta(s, m.meta || dados.meta) ? "✅" : "❌"
-              }</span>`;
-            })
+            .map(
+              (s) =>
+                `<span class="hs">${escapar(nomeDe(s.id))}: ${s.kills}k/${
+                  s.damage
+                }d ${bateuMeta(s, m.meta || dados.meta) ? "✅" : "❌"}</span>`
+            )
             .join("") +
           `</div>`
         : "";
       return `<div class="hist-item"><div class="h"><span class="data">${dataFmt} · ${
         (m.entries || []).length
-      } mamada(s) ${meta}${mapaTag}</span><button class="btn mini sec" onclick="removerPartida('${
+      } mamada(s) ${meta}</span><button class="btn mini sec" onclick="removerPartida('${
         m.id
       }')">Excluir</button></div>${statsHtml}<div class="pares">${pares}</div></div>`;
     })

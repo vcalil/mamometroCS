@@ -380,12 +380,10 @@ function gridDemo() {
               }>${escapar(p.name)}</option>`
           )
           .join("");
-      const kda = `${l.kills}/${l.deaths ?? 0}/${l.assists ?? 0}`;
-      const flash = l.flashAssists ? ` · 🔦${l.flashAssists}` : "";
       return `<div class="ocr-row ${l.playerId ? "" : "off"}">
         <div class="ocr-lida" title="SteamID ${escapar(l.steamId)}">${escapar(
         l.nome
-      )} <small>${kda} · ${l.damage} dano${flash}</small></div>
+      )} <small>${l.kills}k · ${l.damage} dano</small></div>
         <select class="ocr-bind" onchange="demBind(${i},this.value)">${opts}</select>
         <input type="number" min="0" class="ocr-k" value="${
           l.kills ?? ""
