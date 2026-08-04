@@ -1,17 +1,7 @@
-import { dados, nomeDe, escapar, salvarPartidas } from "../state.js";
+import { dados, nomeDe, escapar } from "../state.js";
 import { estatisticas, taxaMamada } from "../stats.js";
 import { configurado } from "../firebase.js";
 import { listaSeasons, seasonAtual } from "../seasons.js";
-import { usuarioAtual, steamIdDoUser, ehAdmin } from "../auth.js";
-import {
-  votacaoAtual,
-  contarVotos,
-  meuVoto,
-  iniciarVotacao,
-  votar,
-  encerrarVotacao,
-  PERGUNTA,
-} from "../votacao.js";
 
 // Tag <img> do avatar (ou vazio se o jogador não tem perfil Steam).
 function avImg(url, cls = "av") {
@@ -87,7 +77,7 @@ export function render() {
         )}</option>`
     )
     .join("");
-  let html = bannerVotacao() + `<div class="season-bar">
+  let html = `<div class="season-bar">
       <label class="sb-l">Temporada</label>
       <select class="sb-sel" onchange="trocarSeason(this.value)">
         ${opcoes}<option value="todas" ${
@@ -215,102 +205,4 @@ export function render() {
 
 export function toggleLinha(el) {
   el.parentElement.classList.toggle("aberta");
-}
-
-// ---- Banner da votação de reset (aparece na entrada, pra todos) ----
-function bannerVotacao() {
-  const user = usuarioAtual();
-  if (!user) return "";
-  const sid = steamIdDoUser(user);
-  const admin = ehAdmin();
-  const p = votacaoAtual();
-
-  // Sem votação: só o organizador vê o convite pra iniciar.
-  if (!p) {
-    return admin
-      ? `<div class="vt-banner"><div class="vt-q">Abrir uma votação: resetar o Mamômetro agora que dá pra registrar por demo?</div>
-           <div class="vt-admin"><button class="btn gold mini" onclick="iniciarVotacaoReset()">Iniciar votação</button></div></div>`
-      : "";
-  }
-  if ((p.status || "aberta") !== "aberta") return ""; // encerrada: some pra todos
-
-  const { reset, continuar, total } = contarVotos(p);
-  const meu = meuVoto(sid, p);
-  const pctR = total ? Math.round((reset / total) * 100) : 0;
-  return `<div class="vt-banner">
-    <div class="vt-q">🗳️ ${escapar(p.pergunta || PERGUNTA)}</div>
-    <div class="vt-opts">
-      <button class="vt-opt ${meu === "reset" ? "on" : ""}" onclick="votarReset('reset')">🔄 Resetar</button>
-      <button class="vt-opt ${meu === "continuar" ? "on" : ""}" onclick="votarReset('continuar')">➡️ Continuar</button>
-    </div>
-    <div class="vt-bar"><span style="width:${pctR}%"></span></div>
-    <div class="vt-nums">Resetar <b>${reset}</b> · Continuar <b>${continuar}</b> · ${total} voto(s)${
-    meu ? ` — seu voto: <b>${meu === "reset" ? "Resetar" : "Continuar"}</b>` : " — você ainda não votou"
-  }</div>
-    ${
-      admin
-        ? `<div class="vt-admin">
-      <button class="btn gold mini" onclick="aplicarResetVotacao()">Aplicar: zerar partidas</button>
-      <button class="btn sec mini" onclick="encerrarVotacaoReset()">Encerrar sem resetar</button>
-    </div>`
-        : ""
-    }
-  </div>`;
-}
-
-const autorAtual = () => {
-  const sid = steamIdDoUser(usuarioAtual());
-  const eu = dados.players.find((p) => p.steamId === sid);
-  return { steamId: sid || "", nome: eu ? eu.name : "organizador" };
-};
-
-export function iniciarVotacaoReset() {
-  if (!ehAdmin()) return;
-  iniciarVotacao(autorAtual())
-    .then(render)
-    .catch((e) => alert("Não deu pra iniciar: " + ((e && e.message) || "")));
-}
-export function votarReset(escolha) {
-  const sid = steamIdDoUser(usuarioAtual());
-  if (!sid) return;
-  votar(sid, escolha).catch((e) => alert("Não deu pra votar: " + ((e && e.message) || "")));
-}
-export function encerrarVotacaoReset() {
-  if (!ehAdmin()) return;
-  if (!confirm("Encerrar a votação SEM resetar?")) return;
-  encerrarVotacao("mantido", autorAtual())
-    .then(render)
-    .catch((e) => alert("Não deu: " + ((e && e.message) || "")));
-}
-export function aplicarResetVotacao() {
-  if (!ehAdmin()) return;
-  const { reset, continuar } = contarVotos();
-  if (
-    !confirm(
-      `Zerar TODAS as partidas? (votos: resetar ${reset} x continuar ${continuar})\n\n` +
-        "Jogadores e meta continuam. Vou baixar um backup das partidas antes."
-    )
-  )
-    return;
-  // Backup client-side das partidas antes de zerar.
-  try {
-    const blob = new Blob(
-      [JSON.stringify({ quando: new Date().toISOString(), matches: dados.matches }, null, 2)],
-      { type: "application/json" }
-    );
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "mamometro-partidas-backup.json";
-    a.click();
-  } catch {
-    /* download é só um extra */
-  }
-  dados.matches = [];
-  Promise.resolve(salvarPartidas())
-    .then(() => encerrarVotacao("resetado", autorAtual()))
-    .then(() => {
-      render();
-      alert("Partidas zeradas — o ranking recomeça do zero.");
-    })
-    .catch((e) => alert("Não deu pra resetar: " + ((e && e.message) || "")));
 }

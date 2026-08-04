@@ -2,16 +2,7 @@ import { ref, onValue } from "firebase/database";
 import { db, configurado } from "./firebase.js";
 import { aplicarSnapshot, resetarCarga } from "./state.js";
 import { aoMudarAuth, definirPapeis } from "./auth.js";
-import {
-  toggleLinha,
-  trocarVisao,
-  trocarSeason,
-  iniciarVotacaoReset,
-  votarReset,
-  aplicarResetVotacao,
-  encerrarVotacaoReset,
-} from "./ui/render.js";
-import { setVotacao } from "./votacao.js";
+import { toggleLinha, trocarVisao, trocarSeason } from "./ui/render.js";
 import { mostrarSetup } from "./ui/setup.js";
 import * as admin from "./ui/admin.js";
 import * as conta from "./ui/conta.js";
@@ -37,10 +28,6 @@ Object.assign(window, {
   toggleLinha,
   trocarVisao,
   trocarSeason,
-  iniciarVotacaoReset,
-  votarReset,
-  aplicarResetVotacao,
-  encerrarVotacaoReset,
   abrirAjuda,
   abrirAdmin: admin.abrirAdmin,
   fecharOverlay: admin.fecharOverlay,
@@ -180,14 +167,6 @@ if (configurado) {
       onValue(ref(db, "propostas"), (snap) => {
         setPropostas(snap.val() || {});
         if (document.getElementById("pn-assemb")) assembleia.renderAssembleia();
-      })
-    );
-
-    // Enquete de reset (todos votam) — atualiza o banner na entrada ao vivo.
-    desinscrever.push(
-      onValue(ref(db, "votacao"), (snap) => {
-        setVotacao(snap.val() || {});
-        conta.renderApp();
       })
     );
 
