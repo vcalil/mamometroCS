@@ -71,6 +71,48 @@ export function statsList(m) {
   return [];
 }
 
+// ---- Detecção de partida duplicada ----------------------------------------
+// Assinatura forte: data + mapa + (id:kills:dano de cada participante), ordenada.
+// Dois envios da MESMA partida dão a mesma assinatura; partidas diferentes (até
+// no mesmo dia, com a mesma galera) diferem nos números.
+export function assinaturaPartida(m) {
+  const corpo = statsList(m)
+    .map((s) => `${s.id}:${Number(s.kills) || 0}:${Number(s.damage) || 0}`)
+    .sort()
+    .join("|");
+  return `${m.date || ""}#${String(m.map || "").toLowerCase()}#${corpo}`;
+}
+
+// Conjunto de participantes (por id): junta quem aparece em stats e em entries.
+function participantesSet(m) {
+  const set = new Set(statsList(m).map((s) => s.id).filter(Boolean));
+  (m.entries || []).forEach((e) => {
+    if (e.from) set.add(e.from);
+    if (e.to) set.add(e.to);
+  });
+  return set;
+}
+
+// Procura duplicata de `nova` entre `existentes`. Retorna:
+//   { tipo: "exata", ref }    -> data, jogadores E números iguais (quase certo)
+//   { tipo: "provavel", ref } -> mesma data e mesmos jogadores (números diferem)
+//   null                       -> nada parecido
+export function acharDuplicata(nova, existentes) {
+  const assin = assinaturaPartida(nova);
+  const part = participantesSet(nova);
+  if (!part.size) return null;
+  let provavel = null;
+  for (const m of existentes || []) {
+    if (assinaturaPartida(m) === assin) return { tipo: "exata", ref: m };
+    if (!provavel && (m.date || "") === (nova.date || "")) {
+      const pm = participantesSet(m);
+      if (pm.size === part.size && [...part].every((id) => pm.has(id)))
+        provavel = { tipo: "provavel", ref: m };
+    }
+  }
+  return provavel;
+}
+
 // Um jogador bateu a meta se atingiu kills E dano (comparado à meta dada).
 export function bateuMeta(stat, meta = dados.meta) {
   const k = Number(stat && stat.kills) || 0;

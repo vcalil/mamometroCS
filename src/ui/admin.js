@@ -9,6 +9,7 @@ import {
   bateuMeta,
   acharJogadorPorStat,
   statsList,
+  acharDuplicata,
 } from "../state.js";
 import {
   ehAdmin,
@@ -638,9 +639,22 @@ export function salvarPartida() {
     kills: Number(stats[id] && stats[id].kills) || 0,
     damage: Number(stats[id] && stats[id].damage) || 0,
   }));
+  const dataFinal = dataPartida || new Date().toISOString().slice(0, 10);
+  // Anti-duplicata: idêntica bloqueia; mesma data + jogadores só avisa.
+  const dup = acharDuplicata({ date: dataFinal, stats: statsArr, entries }, dados.matches);
+  if (dup) {
+    if (dup.tipo === "exata")
+      return alert("Essa partida já está registrada (mesma data, jogadores e números).");
+    if (
+      !confirm(
+        "Já existe uma partida nessa data com esses mesmos jogadores.\nSe for outra do mesmo dia, OK; se for a mesma, cancele.\n\nSalvar mesmo assim?"
+      )
+    )
+      return;
+  }
   dados.matches.push({
     id: uid(),
-    date: dataPartida || new Date().toISOString().slice(0, 10),
+    date: dataFinal,
     meta: { ...dados.meta },
     stats: statsArr,
     entries,

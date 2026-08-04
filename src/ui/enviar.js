@@ -7,9 +7,10 @@ import {
   acharJogadorPorStat,
   uid,
   salvarPartidas,
+  acharDuplicata,
 } from "../state.js";
 import { usuarioAtual, steamIdDoUser, ehAdmin } from "../auth.js";
-import { enviarSubmissao } from "../submissoes.js";
+import { enviarSubmissao, listaSubmissoes } from "../submissoes.js";
 import { validar } from "../leetify.js";
 import { pendentePara } from "../gsi-client.js";
 import { lerDemo } from "../demo.js";
@@ -226,6 +227,26 @@ export async function confirmarEnvio() {
 
   const statsPorJogador = {};
   time.forEach((id) => (statsPorJogador[id] = stats[id]));
+
+  // Anti-duplicata: compara com o ranking e com a fila de aprovação.
+  const nova = { date: dataPartida, map: mapaPartida, stats: statsPorJogador, entries };
+  const dup = acharDuplicata(nova, [...dados.matches, ...listaSubmissoes()]);
+  if (dup) {
+    if (dup.tipo === "exata")
+      return (erro.textContent =
+        "Essa partida já foi registrada (mesma data, jogadores e números). Não enviei de novo.");
+    // "provável" só avisa fora da demo: na demo os números são exatos e várias
+    // partidas na mesma noite com a mesma galera são normais (não é duplicata).
+    if (
+      origem !== "demo" &&
+      !confirm(
+        "Já existe uma partida nessa data com esses mesmos jogadores.\n\n" +
+          "Se for OUTRA partida do mesmo dia, tudo bem — clique OK.\n" +
+          "Se for a MESMA, cancele."
+      )
+    )
+      return;
+  }
 
   // Demo enviada por organizador entra DIRETO no ranking (sem fila): os números
   // vêm exatos da demo e o organizador é confiável (já grava partidas direto).

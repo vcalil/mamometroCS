@@ -1,6 +1,6 @@
 // Aba "Aprovações": fila de partidas enviadas pela galera.
 // Só organizador vê e age — e as regras do banco garantem isso do lado de lá.
-import { dados, escapar, nomeDe } from "../state.js";
+import { dados, escapar, nomeDe, acharDuplicata } from "../state.js";
 import { usuarioAtual, steamIdDoUser } from "../auth.js";
 import {
   listaSubmissoes,
@@ -89,6 +89,22 @@ export function renderAprovacoes() {
 }
 
 export async function aprovar(key) {
+  // Se essa submissão já está igual no ranking, avisa antes de duplicar.
+  const s = listaSubmissoes().find((x) => x.key === key);
+  if (s) {
+    const dup = acharDuplicata(
+      { date: s.date, map: s.map, stats: s.stats, entries: s.entries },
+      dados.matches
+    );
+    if (
+      dup &&
+      dup.tipo === "exata" &&
+      !confirm(
+        "Essa partida já está no ranking (mesma data, jogadores e números). Aprovar mesmo assim?"
+      )
+    )
+      return;
+  }
   const user = usuarioAtual();
   const sid = steamIdDoUser(user);
   const eu = dados.players.find((p) => p.steamId === sid);
