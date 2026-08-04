@@ -10,3 +10,5 @@ dist
 *.dem.bz2
 *.dem.info
 match730_*.json
+.mm-creds
+estado-antes-restore-*.json

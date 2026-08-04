@@ -4,6 +4,7 @@ import {
   uid,
   escapar,
   aguardarDados,
+  dadosCarregados,
 } from "../state.js";
 import { buscarPerfilSteam } from "../steam.js";
 import { configurado } from "../firebase.js";
@@ -167,9 +168,16 @@ export async function fazerCadastro() {
   btn.textContent = "Cadastrando...";
   try {
     perfilPendente = await cadastrar(steam, senha);
-    // Espera o primeiro snapshot: sem isso a lista de cards sai vazia.
+    // Espera o primeiro snapshot: sem isso a lista de cards sai vazia — e criar
+    // card com a lista vazia sobrescreveria o elenco inteiro.
     btn.textContent = "Carregando cards...";
-    await aguardarDados();
+    if (!(await aguardarDados())) {
+      erro.textContent =
+        "Não consegui carregar os jogadores. Confira a conexão e tente de novo.";
+      btn.disabled = false;
+      btn.textContent = "Cadastrar";
+      return;
+    }
     mostrarVinculo(); // escolher qual card é você (ou criar novo)
   } catch (e) {
     erro.textContent = msgErroAuth(e);
@@ -188,7 +196,13 @@ export async function fazerEntrar() {
     perfilPendente = await entrar(steam, senha);
     // Mesma espera do cadastro: só dá pra saber se há card depois do snapshot.
     btn.textContent = "Carregando...";
-    await aguardarDados();
+    if (!(await aguardarDados())) {
+      erro.textContent =
+        "Não consegui carregar os jogadores. Confira a conexão e tente de novo.";
+      btn.disabled = false;
+      btn.textContent = "Entrar";
+      return;
+    }
     // Se já tem card vinculado, fecha; senão, oferece vincular.
     if (jogadorPorSteam(perfilPendente.steamId)) {
       perfilPendente = null;
@@ -217,7 +231,7 @@ export async function garantirVinculo({ forcado = false } = {}) {
   const sid = steamIdDoUser(user);
   if (!sid) return;
   if (vinculoOferecido && !forcado) return; // não reabre a cada snapshot
-  await aguardarDados();
+  if (!(await aguardarDados())) return; // dados não carregaram: não arrisca vínculo
   if (jogadorPorSteam(sid)) return; // já vinculado, nada a fazer
   vinculoOferecido = true;
   if (!perfilPendente || perfilPendente.steamId !== sid) {
@@ -273,9 +287,22 @@ function mostrarVinculo() {
   abrir();
 }
 
+// Trava de segurança: gravar a lista de jogadores SEM os dados carregados
+// sobrescreveria o elenco inteiro com uma lista quase vazia (foi o que apagou
+// os players). Só grava se o snapshot realmente chegou.
+function dadosProntosOuAvisa() {
+  if (dadosCarregados()) return true;
+  alert(
+    "Os dados ainda não carregaram. Recarregue a página e tente de novo — " +
+      "assim a gente não sobrescreve o elenco por engano."
+  );
+  return false;
+}
+
 export function reivindicar(id) {
   const p = dados.players.find((x) => x.id === id);
   if (!p || !perfilPendente) return;
+  if (!dadosProntosOuAvisa()) return;
   p.steamId = perfilPendente.steamId;
   p.avatar = perfilPendente.avatar || "";
   p.profileUrl = perfilPendente.profileUrl || "";
@@ -286,6 +313,7 @@ export function reivindicar(id) {
 }
 export function criarNovoJogador() {
   if (!perfilPendente) return;
+  if (!dadosProntosOuAvisa()) return;
   dados.players.push({
     id: uid(),
     name: perfilPendente.name,

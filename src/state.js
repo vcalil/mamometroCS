@@ -123,10 +123,16 @@ export function bateuMeta(stat, meta = dados.meta) {
 // As regras separam os ramos de `estado`: elenco é livre pra quem tem conta
 // (vínculo de card), partidas e meta são só do organizador. Por isso cada
 // gravação vai no seu ramo — um set() no nó inteiro seria recusado.
+//
+// TRAVA DE SEGURANÇA: como esses `set` sobrescrevem o nó INTEIRO, gravar antes
+// do primeiro snapshot chegar (dados ainda vazios) apagaria tudo. Então nunca
+// grava players/matches sem os dados terem carregado. (meta é escalar, sem risco.)
 export function salvarJogadores() {
+  if (!carregado) return Promise.resolve();
   if (db) return set(ref(db, "estado/players"), dados.players);
 }
 export function salvarPartidas() {
+  if (!carregado) return Promise.resolve();
   if (db) return set(ref(db, "estado/matches"), dados.matches);
 }
 export function salvarMeta() {
