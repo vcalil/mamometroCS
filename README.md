@@ -355,6 +355,13 @@ Cada ramo de `estado` é gravado separadamente (`salvarJogadores`,
 
 ---
 
+## 🤝 Contribuindo
+
+O repositório é público, mas o `main` é protegido: contribuições externas entram
+por **pull request** e só são mescladas após **aprovação** do mantenedor.
+
+---
+
 ## 📄 Licença
 
 MIT — ver [LICENSE](LICENSE).
