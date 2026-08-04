@@ -1,0 +1,25 @@
+{
+  "_comment": "Template for cs-demo-downloader (https://github.com/Claabs/cs-demo-downloader). See demo-downloader/README.md for the full setup walkthrough (bot account, .maFile, Steam Web API key, player onboarding). NEVER commit real values — all entries below are placeholders.",
+
+  "authCodeLogin": {
+    "_comment": "Credentials of the DEDICATED Steam account that the bot logs in as. This account must be Steam Guard mobile-authenticator-enabled; the `secret` is the `shared_secret` field from the .maFile exported by Steam Desktop Authenticator.",
+    "username": "REPLACE_bot_steam_username",
+    "password": "REPLACE_bot_steam_password",
+    "secret": "REPLACE_shared_secret_base64_from_maFile"
+  },
+
+  "authCodes": [
+    {
+      "_comment": "Add one entry per player whose matches the bot should fetch. The `authCode` is the Game Authentication Code from help.steampowered.com (see README). `oldestShareCode` is the most recent share-code the player has already given us — the bot walks back from there.",
+      "authCode": "REPLACE_AAAA-1111-BBBB",
+      "steamId64": "REPLACE_7656119XXXXXXXXXX",
+      "oldestShareCode": "REPLACE_CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+    }
+  ],
+
+  "steamApiKey": "REPLACE_steam_web_api_key_from_steamcommunity_com_dev_apikey",
+
+  "logLevel": "info",
+  "runOnStartup": false,
+  "cronSchedule": "0 * * * *"
+}

@@ -355,6 +355,31 @@ Cada ramo de `estado` é gravado separadamente (`salvarJogadores`,
 
 ---
 
+## 🛠 Pipeline de demos (VPS) — WIP (F0)
+
+Em paralelo à entrada manual / GSI / Leetify, a ideia é ter um **bot Steam**
+numa VPS que baixa as `.dem` automaticamente e um serviço Python que extrai
+os stats por jogador, espelhando o que o [`porTotais()`](#-funcionalidades)
+faz no front.
+
+- 🤖 **Bot** — `cs-demo-downloader` ([Claabs](https://github.com/Claabs/cs-demo-downloader)),
+  imagem [`ghcr.io/claabs/cs-demo-downloader`](https://ghcr.io/claabs/cs-demo-downloader).
+  Loga numa conta Steam descartável, varre os share-codes dos jogadores
+  cadastrados e grava os `.dem` em `./demo-downloader/demos`.
+- 🐍 **Parser** — [`demo-parser/`](demo-parser/), container
+  `demo-parser`. Lê os `.dem` com `demoparser2`, calcula o scoreboard final
+  (mesmas tick-props do front), filtra por overlap com o roster, deduplica
+  por fingerprint e grava em `matches/{id}` no Realtime Database.
+
+**Estado atual (F0):** o esqueleto do compose, o `config.example.json`, o
+parser com CLI dry-run e a documentação de setup já estão no repo. O
+watcher (F1) e o roteamento Traefik (F2) ainda não.
+
+Setup completo do bot (conta descartável, `.maFile`, chave da API, onboarding
+de jogador com share-code): [`demo-downloader/README.md`](demo-downloader/README.md).
+
+---
+
 ## 📄 Licença
 
 MIT — ver [LICENSE](LICENSE).
