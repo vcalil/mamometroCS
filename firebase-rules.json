@@ -55,6 +55,32 @@
         }
       }
     },
+    "votacao": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && !data.exists() && (root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador')",
+        ".validate": "newData.hasChildren(['pergunta', 'status', 'ts'])",
+        "votos": {
+          "$steamid": {
+            ".write": "auth != null && $steamid === auth.token.email.replace('@mamometro.gg', '')",
+            ".validate": "newData.isString()"
+          }
+        },
+        "status": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'",
+          ".validate": "newData.isString()"
+        },
+        "resultado": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'"
+        },
+        "aplicadaPor": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'"
+        },
+        "aplicadaEm": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'"
+        }
+      }
+    },
     "gsi": {
       "live": {
         "$steamid": {
