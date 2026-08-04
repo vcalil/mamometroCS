@@ -303,3 +303,10 @@ input:focus,select:focus{outline:none;border-color:var(--coral)}
 
 /* Apelido ao lado do nome (identificação fácil) */
 .apelido{opacity:.6;font-weight:400;font-size:.85em}
+
+/* Selo do CS Rating (Premier) ao lado do nome */
+.csrank{
+  font-size:.8em;font-weight:700;color:#7ad0ff;
+  background:rgba(122,208,255,.12);border:1px solid rgba(122,208,255,.3);
+  border-radius:6px;padding:1px 6px;white-space:nowrap;vertical-align:middle;
+}

@@ -1,4 +1,4 @@
-import { dados, nomeDe, escapar, nomeApelidoHtml } from "../state.js";
+import { dados, nomeDe, escapar, nomeApelidoHtml, rankBadgeHtml } from "../state.js";
 import { estatisticas, taxaMamada } from "../stats.js";
 import { configurado } from "../firebase.js";
 import { listaSeasons, seasonAtual } from "../seasons.js";
@@ -129,7 +129,7 @@ export function render() {
           i + 1
         }</div><div class="info"><div class="nm">${avImg(r.avatar)}${nomeApelidoHtml(
           r.id
-        )}</div><div class="barra"><span data-pct="${Math.round(
+        )}${rankBadgeHtml(r.id)}</div><div class="barra"><span data-pct="${Math.round(
           (r.pct / maxPct) * 100
         )}"></span></div></div><div class="cont">${r.pct}<small>% · ${
           r.mamou
@@ -153,7 +153,7 @@ export function render() {
       }</div><div class="pos">${i + 1}º</div>${avImg(
         r.avatar,
         "av-podio"
-      )}<div class="nome">${nomeApelidoHtml(r.id)}</div><div class="qtd">${
+      )}<div class="nome">${nomeApelidoHtml(r.id)}${rankBadgeHtml(r.id)}</div><div class="qtd">${
         r.total
       }<small>${t.unid}</small></div></div>`;
     });
@@ -186,7 +186,7 @@ export function render() {
       i + 1
     }</div><div class="info"><div class="nm">${avImg(r.avatar)}${nomeApelidoHtml(
       r.id
-    )}${
+    )}${rankBadgeHtml(r.id)}${
       mm[r.id]
         ? ` <span class="mm" title="Mamou em ${mm[r.id].mamou} de ${mm[r.id].jogos} partida(s) que jogou">🍼 ${mm[r.id].pct}%</span>`
         : ""

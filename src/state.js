@@ -145,6 +145,15 @@ export const uid = () =>
 export const nomeDe = (id) =>
   (dados.players.find((p) => p.id === id) || {}).name || "—";
 
+// Selo do CS Rating (Premier) pra mostrar ao lado do nome. Só aparece se veio
+// da demo (rankType 11 = Premier) e é > 0. Aceita player ou id.
+export function rankBadgeHtml(p) {
+  const player = typeof p === "string" ? dados.players.find((x) => x.id === p) : p;
+  if (!player || player.rankType !== 11 || !player.csRating) return "";
+  const fmt = Number(player.csRating).toLocaleString("pt-BR");
+  return ` <span class="csrank" title="CS Rating (Premier)">⭐ ${fmt}</span>`;
+}
+
 // Nome (da Steam) + apelido ao lado, como HTML. Aceita um player ou um id.
 // Ex.: "Rato Molhado do Piauí <span class="apelido">(Iago)</span>".
 export function nomeApelidoHtml(p) {

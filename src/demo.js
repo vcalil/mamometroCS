@@ -76,6 +76,8 @@ function porTotais(parseTicks, bytes, tick) {
     "enemies_flashed_total",
     "headshot_kills_total",
     "mvps",
+    "rank", // CS Rating (Premier quando comp_rank_type === 11)
+    "comp_rank_type",
   ];
   let rows;
   try {
@@ -102,6 +104,8 @@ function porTotais(parseTicks, bytes, tick) {
       enemiesFlashed: num(r.enemies_flashed_total),
       hsKills: num(r.headshot_kills_total),
       mvps: num(r.mvps),
+      csRating: num(r.rank),
+      rankType: num(r.comp_rank_type),
     });
   }
   const lista = [...porSid.values()];

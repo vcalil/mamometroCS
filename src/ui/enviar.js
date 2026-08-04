@@ -7,6 +7,7 @@ import {
   acharJogadorPorStat,
   uid,
   salvarPartidas,
+  salvarJogadores,
   acharDuplicata,
 } from "../state.js";
 import { usuarioAtual, steamIdDoUser, ehAdmin } from "../auth.js";
@@ -416,8 +417,13 @@ export function renderDemoEnviar() {
   el.innerHTML = `
     <div class="aviso">Suba a <b>demo (.dem)</b> de uma partida — baixe pelo CS2 em
     <b>Assistir → suas partidas → Baixar</b>. O site lê os números <b>exatos</b> do
-    placar (kills e dano de todos) aqui no seu navegador; o arquivo <b>não sobe</b> pra
-    lugar nenhum. Nada entra no ranking sem um organizador aprovar.</div>
+    placar (kills, dano e o <b>rank</b> de todos) aqui no seu navegador; o arquivo
+    <b>não sobe</b> pra lugar nenhum. Nada entra no ranking sem um organizador aprovar.</div>
+    <label>Onde fica a demo baixada</label>
+    <div class="hint">Depois de clicar <b>Baixar</b> no CS2, o arquivo <code>.dem</code> fica em:</div>
+    <input class="cfg-txt" style="width:100%;font-size:12px" readonly onclick="this.select()"
+      value="...\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\replays\\">
+    <div class="hint">Procure o arquivo grande <code>match730_....dem</code> (100–400 MB) — não o <code>.dem.info</code>.</div>
     <label>Arquivo .dem</label>
     <input type="file" accept=".dem" id="dem-file" onchange="demArquivo(this)">
     <div id="dem-status" class="ocr-status"></div>
@@ -494,6 +500,8 @@ export async function demArquivo(input) {
         enemiesFlashed: p.enemiesFlashed,
         hsKills: p.hsKills,
         mvps: p.mvps,
+        csRating: p.csRating,
+        rankType: p.rankType,
         playerId: jog ? jog.id : "",
       };
     });
@@ -523,6 +531,23 @@ export function demEditNum(i, campo, val) {
 }
 
 export function demAplicar() {
+  // Atualiza o CS Rating (Premier, rank_type 11) dos cards vinculados —
+  // é o que faz o rank aparecer ao lado do nome no ranking.
+  let mudouCard = false;
+  dem.players
+    .filter((l) => l.playerId)
+    .forEach((l) => {
+      const card = dados.players.find((p) => p.id === l.playerId);
+      if (!card || l.rankType !== 11) return;
+      const r = Number(l.csRating);
+      if (Number.isFinite(r) && r > 0 && card.csRating !== r) {
+        card.csRating = r;
+        card.rankType = l.rankType;
+        mudouCard = true;
+      }
+    });
+  if (mudouCard) salvarJogadores();
+
   const itens = dem.players
     .filter((l) => l.playerId)
     .map((l) => ({
