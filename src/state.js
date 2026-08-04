@@ -145,6 +145,17 @@ export const uid = () =>
 export const nomeDe = (id) =>
   (dados.players.find((p) => p.id === id) || {}).name || "—";
 
+// Nome (da Steam) + apelido ao lado, como HTML. Aceita um player ou um id.
+// Ex.: "Rato Molhado do Piauí <span class="apelido">(Iago)</span>".
+export function nomeApelidoHtml(p) {
+  const player = typeof p === "string" ? dados.players.find((x) => x.id === p) : p;
+  if (!player) return "—";
+  const nome = escapar(player.name || "—");
+  return player.apelido
+    ? `${nome} <span class="apelido">(${escapar(player.apelido)})</span>`
+    : nome;
+}
+
 // Avatar de um jogador (ou string vazia se não tiver perfil Steam).
 export const avatarDe = (id) =>
   (dados.players.find((p) => p.id === id) || {}).avatar || "";

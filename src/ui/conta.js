@@ -71,19 +71,20 @@ export function renderConta() {
   if (user) {
     const p = jogadorPorSteam(steamIdDoUser(user));
     const nome = p ? p.name : "jogador";
+    const apel = p && p.apelido ? ` <span class="apelido">(${escapar(p.apelido)})</span>` : "";
     const orgBtn = ehAdmin()
       ? `<button class="btn-org" onclick="abrirAdmin()">Organizador</button>`
       : "";
     // Sem card vinculado? Atalho pra reivindicar o do histórico a qualquer hora.
     const vincBtn = p
-      ? ""
+      ? `<button class="btn-org" onclick="editarApelido()">Apelido</button>`
       : `<button class="btn-org" onclick="vincularCard()">Vincular meu card</button>`;
     // Enviar partida é aberto a todos: o organizador aprova depois.
     const envBtn = `<button class="btn-org" onclick="abrirEnviar()">Enviar partida</button>`;
     const asmBtn = `<button class="btn-org" onclick="abrirAssembleia()">Assembleia</button>`;
     el.innerHTML = `${envBtn}${asmBtn}${vincBtn}${orgBtn}<span class="conta-logado">${avImg(
       p && p.avatar
-    )}<span class="cn">${escapar(nome)}</span><button class="conta-sair" onclick="sairConta()">sair</button></span>`;
+    )}<span class="cn">${escapar(nome)}${apel}</span><button class="conta-sair" onclick="sairConta()">sair</button></span>`;
   } else {
     el.innerHTML = "";
   }
@@ -203,8 +204,10 @@ export async function fazerEntrar() {
       btn.textContent = "Entrar";
       return;
     }
-    // Se já tem card vinculado, fecha; senão, oferece vincular.
-    if (jogadorPorSteam(perfilPendente.steamId)) {
+    // Se já tem card vinculado, atualiza nome/avatar da Steam e fecha; senão, oferece vincular.
+    const cardExistente = jogadorPorSteam(perfilPendente.steamId);
+    if (cardExistente) {
+      sincronizarDaSteam(cardExistente, perfilPendente);
       perfilPendente = null;
       fechar();
     } else {
@@ -221,8 +224,49 @@ export async function fazerEntrar() {
 // Fica disponível enquanto houver gente do histórico sem dono — é o que
 // permite a galera antiga ir reivindicando os cards aos poucos.
 let vinculoOferecido = false;
+let jaSincronizou = false; // já puxou nome/avatar da Steam nesta sessão?
 export function resetarOfertaVinculo() {
   vinculoOferecido = false;
+  jaSincronizou = false;
+}
+
+// Atualiza nome/avatar/URL do card com o que está na Steam agora (se mudou).
+// É o que faz o nome "seguir" a Steam e conserta cards com nome manual antigo.
+function sincronizarDaSteam(card, perfil) {
+  if (!card || !perfil || !dadosCarregados()) return;
+  let mudou = false;
+  if (perfil.name && perfil.name !== card.name) {
+    card.name = perfil.name;
+    mudou = true;
+  }
+  if (perfil.avatar && perfil.avatar !== card.avatar) {
+    card.avatar = perfil.avatar;
+    mudou = true;
+  }
+  if (perfil.profileUrl && perfil.profileUrl !== card.profileUrl) {
+    card.profileUrl = perfil.profileUrl;
+    mudou = true;
+  }
+  if (mudou) {
+    salvarJogadores();
+    renderApp();
+  }
+}
+
+// Define/troca o apelido do próprio card (aparece ao lado do nome).
+export function editarApelido() {
+  const sid = steamIdDoUser(usuarioAtual());
+  const card = sid ? jogadorPorSteam(sid) : null;
+  if (!card) return alert("Você ainda não tem um card vinculado.");
+  if (!dadosCarregados()) return alert("Aguarde os dados carregarem e tente de novo.");
+  const novo = prompt(
+    "Seu apelido (aparece ao lado do nome, pra facilitar identificar).\nDeixe vazio pra remover:",
+    card.apelido || ""
+  );
+  if (novo === null) return; // cancelou
+  card.apelido = novo.trim() || null;
+  salvarJogadores();
+  renderApp();
 }
 
 export async function garantirVinculo({ forcado = false } = {}) {
@@ -232,7 +276,16 @@ export async function garantirVinculo({ forcado = false } = {}) {
   if (!sid) return;
   if (vinculoOferecido && !forcado) return; // não reabre a cada snapshot
   if (!(await aguardarDados())) return; // dados não carregaram: não arrisca vínculo
-  if (jogadorPorSteam(sid)) return; // já vinculado, nada a fazer
+  if (jogadorPorSteam(sid)) {
+    // Já vinculado: puxa nome/avatar da Steam uma vez por sessão (ex.: recarregou logado).
+    if (!jaSincronizou) {
+      jaSincronizou = true;
+      buscarPerfilSteam(sid)
+        .then((perfil) => sincronizarDaSteam(jogadorPorSteam(sid), perfil))
+        .catch(() => {});
+    }
+    return;
+  }
   vinculoOferecido = true;
   if (!perfilPendente || perfilPendente.steamId !== sid) {
     // Recupera nome/avatar da Steam (ex.: recarregou a página já logado).

@@ -300,3 +300,6 @@ input:focus,select:focus{outline:none;border-color:var(--coral)}
 /* Selo do mamômetro (rating médio) ao lado do nome no ranking. */
 .mm{font-size:.72rem;color:var(--gold);border:1px solid rgba(255,194,75,.4);
   border-radius:99px;padding:1px 8px;white-space:nowrap;vertical-align:middle}
+
+/* Apelido ao lado do nome (identificação fácil) */
+.apelido{opacity:.6;font-weight:400;font-size:.85em}
