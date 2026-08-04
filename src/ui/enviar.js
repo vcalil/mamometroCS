@@ -5,8 +5,10 @@ import {
   escapar,
   bateuMeta,
   acharJogadorPorStat,
+  uid,
+  salvarPartidas,
 } from "../state.js";
-import { usuarioAtual, steamIdDoUser } from "../auth.js";
+import { usuarioAtual, steamIdDoUser, ehAdmin } from "../auth.js";
 import { enviarSubmissao } from "../submissoes.js";
 import { validar } from "../leetify.js";
 import { pendentePara } from "../gsi-client.js";
@@ -145,9 +147,16 @@ export function renderFormEnviar() {
     <div class="tcol" style="min-height:auto">${dispHtml}</div>
     ${linhas ? `<label>Números de cada um</label><div class="stat-list">${linhas}</div>` : ""}
     ${preview}
+    ${
+      origem === "demo" && ehAdmin()
+        ? `<div class="hint">Você é organizador e a partida veio da <b>demo</b> — entra <b>direto no ranking</b>, sem fila de aprovação.</div>`
+        : ""
+    }
     <div class="erro" id="env-erro"></div>
     <div class="row-btns">
-      <button class="btn gold" id="env-btn" onclick="confirmarEnvio()">Enviar pra aprovação</button>
+      <button class="btn gold" id="env-btn" onclick="confirmarEnvio()">${
+        origem === "demo" && ehAdmin() ? "Registrar no ranking" : "Enviar pra aprovação"
+      }</button>
     </div>`;
 }
 
@@ -210,36 +219,66 @@ export async function confirmarEnvio() {
   const entries = [];
   losers.forEach((l) => winners.forEach((w) => entries.push({ from: l, to: w })));
 
-  btn.disabled = true;
-  btn.textContent = "Validando no Leetify...";
-
-  // Validação é um extra: se falhar ou demorar, o envio segue mesmo assim.
-  let validacao = null;
-  try {
-    const paraValidar = time.map((id) => {
-      const p = dados.players.find((x) => x.id === id) || {};
-      return { steamId: p.steamId, name: p.name, kills: (stats[id] || {}).kills };
-    });
-    validacao = await validar(paraValidar, dataPartida);
-  } catch {
-    validacao = null;
-  }
-
   const user = usuarioAtual();
   const sid = steamIdDoUser(user);
   const eu = dados.players.find((p) => p.steamId === sid);
+  const nomeAutor = eu ? eu.name : "jogador";
 
   const statsPorJogador = {};
   time.forEach((id) => (statsPorJogador[id] = stats[id]));
 
+  // Demo enviada por organizador entra DIRETO no ranking (sem fila): os números
+  // vêm exatos da demo e o organizador é confiável (já grava partidas direto).
+  // Para os demais, as regras do banco nem deixam gravar em estado/matches.
+  const autoAprovar = origem === "demo" && ehAdmin();
+
+  btn.disabled = true;
+
+  // Validação no Leetify só faz sentido pra fila (o organizador confere). Na
+  // auto-aprovação por demo os números já são exatos — pula.
+  let validacao = null;
+  if (!autoAprovar) {
+    btn.textContent = "Validando no Leetify...";
+    try {
+      const paraValidar = time.map((id) => {
+        const p = dados.players.find((x) => x.id === id) || {};
+        return { steamId: p.steamId, name: p.name, kills: (stats[id] || {}).kills };
+      });
+      validacao = await validar(paraValidar, dataPartida);
+    } catch {
+      validacao = null;
+    }
+  }
+
   try {
+    if (autoAprovar) {
+      btn.textContent = "Registrando...";
+      dados.matches.push({
+        id: uid(),
+        date: dataPartida,
+        entries,
+        stats: statsPorJogador,
+        map: mapaPartida || null,
+        origem: "demo",
+        enviadoPor: { steamId: sid || "", nome: nomeAutor },
+        enviadoEm: Date.now(),
+        aprovadoPor: { steamId: sid || "", nome: nomeAutor },
+        aprovadoEm: Date.now(),
+        autoAprovada: true,
+      });
+      await salvarPartidas();
+      fecharEnviar();
+      alert("Partida registrada direto no ranking (lida da demo).");
+      return;
+    }
+
     btn.textContent = "Enviando...";
     await enviarSubmissao({
       date: dataPartida,
       entries,
       stats: statsPorJogador,
       map: mapaPartida || null,
-      autor: { steamId: sid || "", nome: eu ? eu.name : "jogador" },
+      autor: { steamId: sid || "", nome: nomeAutor },
       origem,
       validacao,
     });
