@@ -22,10 +22,28 @@ from . import config
 
 
 def _normalize(data: Any) -> list[str]:
-    """Coerce list-of-strings or dict-of-{key:true} into a list of string steamids."""
+    """Coerce various roster shapes into a list of string steamids.
+
+    Accepted shapes:
+        ["7656...", "7656...", ...]                  # bare list of strings
+        {"7656...": true, ...}                       # RTDB keyed map (live RTDB)
+        {"players": [{"steamId": "7656..."}, ...]}  # F1 local seed format
+    """
     if isinstance(data, list):
         return [str(x) for x in data if x is not None]
     if isinstance(data, dict):
+        # F1 seed shape: {"_comment": ..., "players": [{"steamId": "..."}]}
+        if "players" in data and isinstance(data["players"], list):
+            sids: list[str] = []
+            for entry in data["players"]:
+                if isinstance(entry, dict):
+                    sid = entry.get("steamId")
+                    if sid is not None:
+                        sids.append(str(sid))
+                elif isinstance(entry, str):
+                    sids.append(entry)
+            return sids
+        # RTDB keyed map: {"7656...": {name, ...}, ...}
         return [str(k) for k in data.keys()]
     raise RuntimeError(
         f"Roster must be a JSON list or object, got {type(data).__name__}"

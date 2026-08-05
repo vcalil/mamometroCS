@@ -35,15 +35,18 @@ services:
     environment:
       - TZ=America/Sao_Paulo
 
-  # demo-parser (./demo-parser) — F0 é um stub com CLI dry-run.
-  # Quando o watcher for implementado, ele consome os .dem que o
-  # demo-downloader grava em /demos e publica em matches/ no RTDB.
+  # demo-parser (./demo-parser) — F1+ watcher real.
+  # Consome os .dem que o demo-downloader grava em /demos e publica
+  # group matches em matches/ no RTDB. Retention: apaga o .dem após
+  # processar (DELETE_AFTER_PROCESS controla). /demos é rw porque o
+  # retention precisa escrever (unlink); FILE_STABILITY_SEC mitiga race
+  # com o downloader.
   demo-parser:
     build: ./demo-parser
     container_name: demo-parser
     restart: unless-stopped
     volumes:
-      - ./demo-downloader/demos:/demos:ro
+      - ./demo-downloader/demos:/demos
       - ./demo-parser/secrets/firebase-admin.json:/secrets/firebase-admin.json:ro
       - ./demo-downloader/config:/config:ro
     environment:
@@ -53,3 +56,6 @@ services:
       - FIREBASE_SA_PATH=/secrets/firebase-admin.json
       - ROSTER_PATH=/config/roster.json
       - GROUP_MIN_MEMBERS=${GROUP_MIN_MEMBERS:-4}
+      - POLL_INTERVAL_SEC=30
+      - DELETE_AFTER_PROCESS=true
+      - FILE_STABILITY_SEC=5
