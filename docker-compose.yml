@@ -15,3 +15,41 @@ services:
     environment:
       - PORT=8888
     restart: unless-stopped
+
+  # ---------------------------------------------------------------------
+  # Pipeline de demos (VPS) — F0 scaffold. Sem labels Traefik ainda; isso
+  # entra em F2 quando o watcher do parser estiver no ar e o roteamento
+  # para download/parse virar necessário.
+  # ---------------------------------------------------------------------
+
+  # cs-demo-downloader (https://github.com/Claabs/cs-demo-downloader)
+  # Loga na conta descartável do bot, varre os share-codes dos jogadores
+  # cadastrados e grava os .dem em ./demo-downloader/demos.
+  demo-downloader:
+    image: ghcr.io/claabs/cs-demo-downloader:latest
+    container_name: demo-downloader
+    restart: unless-stopped
+    volumes:
+      - ./demo-downloader/config:/config
+      - ./demo-downloader/demos:/demos
+    environment:
+      - TZ=America/Sao_Paulo
+
+  # demo-parser (./demo-parser) — F0 é um stub com CLI dry-run.
+  # Quando o watcher for implementado, ele consome os .dem que o
+  # demo-downloader grava em /demos e publica em matches/ no RTDB.
+  demo-parser:
+    build: ./demo-parser
+    container_name: demo-parser
+    restart: unless-stopped
+    volumes:
+      - ./demo-downloader/demos:/demos:ro
+      - ./demo-parser/secrets/firebase-admin.json:/secrets/firebase-admin.json:ro
+      - ./demo-downloader/config:/config:ro
+    environment:
+      - TZ=America/Sao_Paulo
+      - DEMOS_DIR=/demos
+      - FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
+      - FIREBASE_SA_PATH=/secrets/firebase-admin.json
+      - ROSTER_PATH=/config/roster.json
+      - GROUP_MIN_MEMBERS=${GROUP_MIN_MEMBERS:-4}

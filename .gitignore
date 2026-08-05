@@ -10,5 +10,6 @@ dist
 *.dem.bz2
 *.dem.info
 match730_*.json
+demo-downloader/config/
 .mm-creds
 estado-antes-restore-*.json
