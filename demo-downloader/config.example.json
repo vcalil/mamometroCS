@@ -11,7 +11,7 @@
   "authCodes": [
     {
       "_comment": "Add one entry per player whose matches the bot should fetch. The `authCode` is the Game Authentication Code from help.steampowered.com (see README). `oldestShareCode` is the most recent share-code the player has already given us — the bot walks back from there.",
-      "authCode": "REPLACE_AAAA-1111-BBBB",
+      "authCode": "REPLACE_AAAAA-11111-BBBBB",
       "steamId64": "REPLACE_7656119XXXXXXXXXX",
       "oldestShareCode": "REPLACE_CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
     }

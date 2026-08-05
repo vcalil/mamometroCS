@@ -1,11 +1,11 @@
 """CLI entrypoint.
 
 Usage:
-    python -m demo_parser --demo path/to/match.dem
+    python -m demo_parser demo path/to/match.dem
         Dry-run: parse the file, print stats, show filter verdict, do NOT
         touch Firebase. Useful for local development and CI smoke tests.
 
-    python -m demo_parser --watch
+    python -m demo_parser watch
         Stub in F0. The real watcher (F1+) will poll DEMOS_DIR for new .dem
         files and run the parse -> filter -> dedup -> save flow.
 """
