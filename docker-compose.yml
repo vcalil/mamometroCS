@@ -12,8 +12,13 @@ services:
       - "8888:8888"
     env_file:
       - .env
+    volumes:
+      # F1 Fase 3: POST /api/onboard grava em roster/ via Admin SDK.
+      # Reusa o mesmo SA json do demo-parser (mesma conta Firebase).
+      - ./demo-parser/secrets/firebase-admin.json:/secrets/firebase-admin.json:ro
     environment:
       - PORT=8888
+      - FIREBASE_SA_PATH=/secrets/firebase-admin.json
     restart: unless-stopped
 
   # ---------------------------------------------------------------------

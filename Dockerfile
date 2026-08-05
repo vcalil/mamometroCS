@@ -10,13 +10,16 @@ COPY . .
 RUN npm run build
 
 # ── Etapa 2: runtime enxuto ──────────────────────────────────────
-# O servidor só usa APIs nativas do Node (http + fetch) e o handler do
-# Steam — nenhuma dependência npm em runtime.
+# F1 Fase 3: o handler /api/onboard usa firebase-admin (server-side SDK
+# para gravar em roster/). Demais endpoints só usam fetch nativo.
 FROM node:20-slim AS run
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8888
-COPY package.json ./
+COPY package.json package-lock.json ./
+# Copia node_modules com as deps de runtime (firebase-admin + transitive).
+# O --omit=dev no build já excluiu netlify-cli; traz só o que importa.
+COPY --from=build /app/node_modules ./node_modules
 COPY server.js ./
 COPY netlify ./netlify
 COPY --from=build /app/dist ./dist
