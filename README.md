@@ -380,6 +380,13 @@ de jogador com share-code): [`demo-downloader/README.md`](demo-downloader/README
 
 ---
 
+## 🤝 Contribuindo
+
+O repositório é público, mas o `main` é protegido: contribuições externas entram
+por **pull request** e só são mescladas após **aprovação** do mantenedor.
+
+---
+
 ## 📄 Licença
 
 MIT — ver [LICENSE](LICENSE).

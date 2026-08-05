@@ -9,6 +9,8 @@ import {
   bateuMeta,
   acharJogadorPorStat,
   statsList,
+  acharDuplicata,
+  nomeApelidoHtml,
 } from "../state.js";
 import {
   ehAdmin,
@@ -115,8 +117,8 @@ export function renderJogadores() {
       const semSteam = p.steamId
         ? ""
         : `<span class="vd dif" title="Ainda não entrou com a Steam — não pode receber papel">sem conta</span>`;
-      return `<div class="chip"><span class="chip-nome">${avImg(p.avatar)}${escapar(
-        p.name
+      return `<div class="chip"><span class="chip-nome">${avImg(p.avatar)}${nomeApelidoHtml(
+        p
       )}</span>${selo}${semSteam}<button class="x" onclick="removerJogador('${p.id}')">×</button></div>`;
     })
     .join("");
@@ -638,9 +640,22 @@ export function salvarPartida() {
     kills: Number(stats[id] && stats[id].kills) || 0,
     damage: Number(stats[id] && stats[id].damage) || 0,
   }));
+  const dataFinal = dataPartida || new Date().toISOString().slice(0, 10);
+  // Anti-duplicata: idêntica bloqueia; mesma data + jogadores só avisa.
+  const dup = acharDuplicata({ date: dataFinal, stats: statsArr, entries }, dados.matches);
+  if (dup) {
+    if (dup.tipo === "exata")
+      return alert("Essa partida já está registrada (mesma data, jogadores e números).");
+    if (
+      !confirm(
+        "Já existe uma partida nessa data com esses mesmos jogadores.\nSe for outra do mesmo dia, OK; se for a mesma, cancele.\n\nSalvar mesmo assim?"
+      )
+    )
+      return;
+  }
   dados.matches.push({
     id: uid(),
-    date: dataPartida || new Date().toISOString().slice(0, 10),
+    date: dataFinal,
     meta: { ...dados.meta },
     stats: statsArr,
     entries,

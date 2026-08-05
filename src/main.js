@@ -63,6 +63,7 @@ Object.assign(window, {
   fazerEntrar: conta.fazerEntrar,
   reivindicar: conta.reivindicar,
   vincularCard: conta.vincularCard,
+  editarApelido: conta.editarApelido,
   // enviar partida (qualquer usuário logado)
   abrirEnviar: enviar.abrirEnviar,
   fecharEnviar: enviar.fecharEnviar,

@@ -71,6 +71,48 @@ export function statsList(m) {
   return [];
 }
 
+// ---- Detecção de partida duplicada ----------------------------------------
+// Assinatura forte: data + mapa + (id:kills:dano de cada participante), ordenada.
+// Dois envios da MESMA partida dão a mesma assinatura; partidas diferentes (até
+// no mesmo dia, com a mesma galera) diferem nos números.
+export function assinaturaPartida(m) {
+  const corpo = statsList(m)
+    .map((s) => `${s.id}:${Number(s.kills) || 0}:${Number(s.damage) || 0}`)
+    .sort()
+    .join("|");
+  return `${m.date || ""}#${String(m.map || "").toLowerCase()}#${corpo}`;
+}
+
+// Conjunto de participantes (por id): junta quem aparece em stats e em entries.
+function participantesSet(m) {
+  const set = new Set(statsList(m).map((s) => s.id).filter(Boolean));
+  (m.entries || []).forEach((e) => {
+    if (e.from) set.add(e.from);
+    if (e.to) set.add(e.to);
+  });
+  return set;
+}
+
+// Procura duplicata de `nova` entre `existentes`. Retorna:
+//   { tipo: "exata", ref }    -> data, jogadores E números iguais (quase certo)
+//   { tipo: "provavel", ref } -> mesma data e mesmos jogadores (números diferem)
+//   null                       -> nada parecido
+export function acharDuplicata(nova, existentes) {
+  const assin = assinaturaPartida(nova);
+  const part = participantesSet(nova);
+  if (!part.size) return null;
+  let provavel = null;
+  for (const m of existentes || []) {
+    if (assinaturaPartida(m) === assin) return { tipo: "exata", ref: m };
+    if (!provavel && (m.date || "") === (nova.date || "")) {
+      const pm = participantesSet(m);
+      if (pm.size === part.size && [...part].every((id) => pm.has(id)))
+        provavel = { tipo: "provavel", ref: m };
+    }
+  }
+  return provavel;
+}
+
 // Um jogador bateu a meta se atingiu kills E dano (comparado à meta dada).
 export function bateuMeta(stat, meta = dados.meta) {
   const k = Number(stat && stat.kills) || 0;
@@ -81,10 +123,16 @@ export function bateuMeta(stat, meta = dados.meta) {
 // As regras separam os ramos de `estado`: elenco é livre pra quem tem conta
 // (vínculo de card), partidas e meta são só do organizador. Por isso cada
 // gravação vai no seu ramo — um set() no nó inteiro seria recusado.
+//
+// TRAVA DE SEGURANÇA: como esses `set` sobrescrevem o nó INTEIRO, gravar antes
+// do primeiro snapshot chegar (dados ainda vazios) apagaria tudo. Então nunca
+// grava players/matches sem os dados terem carregado. (meta é escalar, sem risco.)
 export function salvarJogadores() {
+  if (!carregado) return Promise.resolve();
   if (db) return set(ref(db, "estado/players"), dados.players);
 }
 export function salvarPartidas() {
+  if (!carregado) return Promise.resolve();
   if (db) return set(ref(db, "estado/matches"), dados.matches);
 }
 export function salvarMeta() {
@@ -96,6 +144,26 @@ export const uid = () =>
 
 export const nomeDe = (id) =>
   (dados.players.find((p) => p.id === id) || {}).name || "—";
+
+// Selo do CS Rating (Premier) pra mostrar ao lado do nome. Só aparece se veio
+// da demo (rankType 11 = Premier) e é > 0. Aceita player ou id.
+export function rankBadgeHtml(p) {
+  const player = typeof p === "string" ? dados.players.find((x) => x.id === p) : p;
+  if (!player || player.rankType !== 11 || !player.csRating) return "";
+  const fmt = Number(player.csRating).toLocaleString("pt-BR");
+  return ` <span class="csrank" title="CS Rating (Premier)">⭐ ${fmt}</span>`;
+}
+
+// Nome (da Steam) + apelido ao lado, como HTML. Aceita um player ou um id.
+// Ex.: "Rato Molhado do Piauí <span class="apelido">(Iago)</span>".
+export function nomeApelidoHtml(p) {
+  const player = typeof p === "string" ? dados.players.find((x) => x.id === p) : p;
+  if (!player) return "—";
+  const nome = escapar(player.name || "—");
+  return player.apelido
+    ? `${nome} <span class="apelido">(${escapar(player.apelido)})</span>`
+    : nome;
+}
 
 // Avatar de um jogador (ou string vazia se não tiver perfil Steam).
 export const avatarDe = (id) =>

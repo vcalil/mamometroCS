@@ -5,9 +5,13 @@ import {
   escapar,
   bateuMeta,
   acharJogadorPorStat,
+  uid,
+  salvarPartidas,
+  salvarJogadores,
+  acharDuplicata,
 } from "../state.js";
-import { usuarioAtual, steamIdDoUser } from "../auth.js";
-import { enviarSubmissao } from "../submissoes.js";
+import { usuarioAtual, steamIdDoUser, ehAdmin } from "../auth.js";
+import { enviarSubmissao, listaSubmissoes } from "../submissoes.js";
 import { validar } from "../leetify.js";
 import { pendentePara } from "../gsi-client.js";
 import { lerDemo } from "../demo.js";
@@ -145,9 +149,16 @@ export function renderFormEnviar() {
     <div class="tcol" style="min-height:auto">${dispHtml}</div>
     ${linhas ? `<label>Números de cada um</label><div class="stat-list">${linhas}</div>` : ""}
     ${preview}
+    ${
+      origem === "demo" && ehAdmin()
+        ? `<div class="hint">Você é organizador e a partida veio da <b>demo</b> — entra <b>direto no ranking</b>, sem fila de aprovação.</div>`
+        : ""
+    }
     <div class="erro" id="env-erro"></div>
     <div class="row-btns">
-      <button class="btn gold" id="env-btn" onclick="confirmarEnvio()">Enviar pra aprovação</button>
+      <button class="btn gold" id="env-btn" onclick="confirmarEnvio()">${
+        origem === "demo" && ehAdmin() ? "Registrar no ranking" : "Enviar pra aprovação"
+      }</button>
     </div>`;
 }
 
@@ -210,36 +221,86 @@ export async function confirmarEnvio() {
   const entries = [];
   losers.forEach((l) => winners.forEach((w) => entries.push({ from: l, to: w })));
 
-  btn.disabled = true;
-  btn.textContent = "Validando no Leetify...";
-
-  // Validação é um extra: se falhar ou demorar, o envio segue mesmo assim.
-  let validacao = null;
-  try {
-    const paraValidar = time.map((id) => {
-      const p = dados.players.find((x) => x.id === id) || {};
-      return { steamId: p.steamId, name: p.name, kills: (stats[id] || {}).kills };
-    });
-    validacao = await validar(paraValidar, dataPartida);
-  } catch {
-    validacao = null;
-  }
-
   const user = usuarioAtual();
   const sid = steamIdDoUser(user);
   const eu = dados.players.find((p) => p.steamId === sid);
+  const nomeAutor = eu ? eu.name : "jogador";
 
   const statsPorJogador = {};
   time.forEach((id) => (statsPorJogador[id] = stats[id]));
 
+  // Anti-duplicata: compara com o ranking e com a fila de aprovação.
+  const nova = { date: dataPartida, map: mapaPartida, stats: statsPorJogador, entries };
+  const dup = acharDuplicata(nova, [...dados.matches, ...listaSubmissoes()]);
+  if (dup) {
+    if (dup.tipo === "exata")
+      return (erro.textContent =
+        "Essa partida já foi registrada (mesma data, jogadores e números). Não enviei de novo.");
+    // "provável" só avisa fora da demo: na demo os números são exatos e várias
+    // partidas na mesma noite com a mesma galera são normais (não é duplicata).
+    if (
+      origem !== "demo" &&
+      !confirm(
+        "Já existe uma partida nessa data com esses mesmos jogadores.\n\n" +
+          "Se for OUTRA partida do mesmo dia, tudo bem — clique OK.\n" +
+          "Se for a MESMA, cancele."
+      )
+    )
+      return;
+  }
+
+  // Demo enviada por organizador entra DIRETO no ranking (sem fila): os números
+  // vêm exatos da demo e o organizador é confiável (já grava partidas direto).
+  // Para os demais, as regras do banco nem deixam gravar em estado/matches.
+  const autoAprovar = origem === "demo" && ehAdmin();
+
+  btn.disabled = true;
+
+  // Validação no Leetify só faz sentido pra fila (o organizador confere). Na
+  // auto-aprovação por demo os números já são exatos — pula.
+  let validacao = null;
+  if (!autoAprovar) {
+    btn.textContent = "Validando no Leetify...";
+    try {
+      const paraValidar = time.map((id) => {
+        const p = dados.players.find((x) => x.id === id) || {};
+        return { steamId: p.steamId, name: p.name, kills: (stats[id] || {}).kills };
+      });
+      validacao = await validar(paraValidar, dataPartida);
+    } catch {
+      validacao = null;
+    }
+  }
+
   try {
+    if (autoAprovar) {
+      btn.textContent = "Registrando...";
+      dados.matches.push({
+        id: uid(),
+        date: dataPartida,
+        entries,
+        stats: statsPorJogador,
+        map: mapaPartida || null,
+        origem: "demo",
+        enviadoPor: { steamId: sid || "", nome: nomeAutor },
+        enviadoEm: Date.now(),
+        aprovadoPor: { steamId: sid || "", nome: nomeAutor },
+        aprovadoEm: Date.now(),
+        autoAprovada: true,
+      });
+      await salvarPartidas();
+      fecharEnviar();
+      alert("Partida registrada direto no ranking (lida da demo).");
+      return;
+    }
+
     btn.textContent = "Enviando...";
     await enviarSubmissao({
       date: dataPartida,
       entries,
       stats: statsPorJogador,
       map: mapaPartida || null,
-      autor: { steamId: sid || "", nome: eu ? eu.name : "jogador" },
+      autor: { steamId: sid || "", nome: nomeAutor },
       origem,
       validacao,
     });
@@ -356,8 +417,13 @@ export function renderDemoEnviar() {
   el.innerHTML = `
     <div class="aviso">Suba a <b>demo (.dem)</b> de uma partida — baixe pelo CS2 em
     <b>Assistir → suas partidas → Baixar</b>. O site lê os números <b>exatos</b> do
-    placar (kills e dano de todos) aqui no seu navegador; o arquivo <b>não sobe</b> pra
-    lugar nenhum. Nada entra no ranking sem um organizador aprovar.</div>
+    placar (kills, dano e o <b>rank</b> de todos) aqui no seu navegador; o arquivo
+    <b>não sobe</b> pra lugar nenhum. Nada entra no ranking sem um organizador aprovar.</div>
+    <label>Onde fica a demo baixada</label>
+    <div class="hint">Depois de clicar <b>Baixar</b> no CS2, o arquivo <code>.dem</code> fica em:</div>
+    <input class="cfg-txt" style="width:100%;font-size:12px" readonly onclick="this.select()"
+      value="...\\Steam\\steamapps\\common\\Counter-Strike Global Offensive\\game\\csgo\\replays\\">
+    <div class="hint">Procure o arquivo grande <code>match730_....dem</code> (100–400 MB) — não o <code>.dem.info</code>.</div>
     <label>Arquivo .dem</label>
     <input type="file" accept=".dem" id="dem-file" onchange="demArquivo(this)">
     <div id="dem-status" class="ocr-status"></div>
@@ -434,6 +500,8 @@ export async function demArquivo(input) {
         enemiesFlashed: p.enemiesFlashed,
         hsKills: p.hsKills,
         mvps: p.mvps,
+        csRating: p.csRating,
+        rankType: p.rankType,
         playerId: jog ? jog.id : "",
       };
     });
@@ -463,6 +531,23 @@ export function demEditNum(i, campo, val) {
 }
 
 export function demAplicar() {
+  // Atualiza o CS Rating (Premier, rank_type 11) dos cards vinculados —
+  // é o que faz o rank aparecer ao lado do nome no ranking.
+  let mudouCard = false;
+  dem.players
+    .filter((l) => l.playerId)
+    .forEach((l) => {
+      const card = dados.players.find((p) => p.id === l.playerId);
+      if (!card || l.rankType !== 11) return;
+      const r = Number(l.csRating);
+      if (Number.isFinite(r) && r > 0 && card.csRating !== r) {
+        card.csRating = r;
+        card.rankType = l.rankType;
+        mudouCard = true;
+      }
+    });
+  if (mudouCard) salvarJogadores();
+
   const itens = dem.players
     .filter((l) => l.playerId)
     .map((l) => ({

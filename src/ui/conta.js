@@ -4,6 +4,7 @@ import {
   uid,
   escapar,
   aguardarDados,
+  dadosCarregados,
 } from "../state.js";
 import { buscarPerfilSteam } from "../steam.js";
 import { configurado } from "../firebase.js";
@@ -70,19 +71,20 @@ export function renderConta() {
   if (user) {
     const p = jogadorPorSteam(steamIdDoUser(user));
     const nome = p ? p.name : "jogador";
+    const apel = p && p.apelido ? ` <span class="apelido">(${escapar(p.apelido)})</span>` : "";
     const orgBtn = ehAdmin()
       ? `<button class="btn-org" onclick="abrirAdmin()">Organizador</button>`
       : "";
     // Sem card vinculado? Atalho pra reivindicar o do histórico a qualquer hora.
     const vincBtn = p
-      ? ""
+      ? `<button class="btn-org" onclick="editarApelido()">Apelido</button>`
       : `<button class="btn-org" onclick="vincularCard()">Vincular meu card</button>`;
     // Enviar partida é aberto a todos: o organizador aprova depois.
     const envBtn = `<button class="btn-org" onclick="abrirEnviar()">Enviar partida</button>`;
     const asmBtn = `<button class="btn-org" onclick="abrirAssembleia()">Assembleia</button>`;
     el.innerHTML = `${envBtn}${asmBtn}${vincBtn}${orgBtn}<span class="conta-logado">${avImg(
       p && p.avatar
-    )}<span class="cn">${escapar(nome)}</span><button class="conta-sair" onclick="sairConta()">sair</button></span>`;
+    )}<span class="cn">${escapar(nome)}${apel}</span><button class="conta-sair" onclick="sairConta()">sair</button></span>`;
   } else {
     el.innerHTML = "";
   }
@@ -167,9 +169,16 @@ export async function fazerCadastro() {
   btn.textContent = "Cadastrando...";
   try {
     perfilPendente = await cadastrar(steam, senha);
-    // Espera o primeiro snapshot: sem isso a lista de cards sai vazia.
+    // Espera o primeiro snapshot: sem isso a lista de cards sai vazia — e criar
+    // card com a lista vazia sobrescreveria o elenco inteiro.
     btn.textContent = "Carregando cards...";
-    await aguardarDados();
+    if (!(await aguardarDados())) {
+      erro.textContent =
+        "Não consegui carregar os jogadores. Confira a conexão e tente de novo.";
+      btn.disabled = false;
+      btn.textContent = "Cadastrar";
+      return;
+    }
     mostrarVinculo(); // escolher qual card é você (ou criar novo)
   } catch (e) {
     erro.textContent = msgErroAuth(e);
@@ -188,9 +197,17 @@ export async function fazerEntrar() {
     perfilPendente = await entrar(steam, senha);
     // Mesma espera do cadastro: só dá pra saber se há card depois do snapshot.
     btn.textContent = "Carregando...";
-    await aguardarDados();
-    // Se já tem card vinculado, fecha; senão, oferece vincular.
-    if (jogadorPorSteam(perfilPendente.steamId)) {
+    if (!(await aguardarDados())) {
+      erro.textContent =
+        "Não consegui carregar os jogadores. Confira a conexão e tente de novo.";
+      btn.disabled = false;
+      btn.textContent = "Entrar";
+      return;
+    }
+    // Se já tem card vinculado, atualiza nome/avatar da Steam e fecha; senão, oferece vincular.
+    const cardExistente = jogadorPorSteam(perfilPendente.steamId);
+    if (cardExistente) {
+      sincronizarDaSteam(cardExistente, perfilPendente);
       perfilPendente = null;
       fechar();
     } else {
@@ -207,8 +224,49 @@ export async function fazerEntrar() {
 // Fica disponível enquanto houver gente do histórico sem dono — é o que
 // permite a galera antiga ir reivindicando os cards aos poucos.
 let vinculoOferecido = false;
+let jaSincronizou = false; // já puxou nome/avatar da Steam nesta sessão?
 export function resetarOfertaVinculo() {
   vinculoOferecido = false;
+  jaSincronizou = false;
+}
+
+// Atualiza nome/avatar/URL do card com o que está na Steam agora (se mudou).
+// É o que faz o nome "seguir" a Steam e conserta cards com nome manual antigo.
+function sincronizarDaSteam(card, perfil) {
+  if (!card || !perfil || !dadosCarregados()) return;
+  let mudou = false;
+  if (perfil.name && perfil.name !== card.name) {
+    card.name = perfil.name;
+    mudou = true;
+  }
+  if (perfil.avatar && perfil.avatar !== card.avatar) {
+    card.avatar = perfil.avatar;
+    mudou = true;
+  }
+  if (perfil.profileUrl && perfil.profileUrl !== card.profileUrl) {
+    card.profileUrl = perfil.profileUrl;
+    mudou = true;
+  }
+  if (mudou) {
+    salvarJogadores();
+    renderApp();
+  }
+}
+
+// Define/troca o apelido do próprio card (aparece ao lado do nome).
+export function editarApelido() {
+  const sid = steamIdDoUser(usuarioAtual());
+  const card = sid ? jogadorPorSteam(sid) : null;
+  if (!card) return alert("Você ainda não tem um card vinculado.");
+  if (!dadosCarregados()) return alert("Aguarde os dados carregarem e tente de novo.");
+  const novo = prompt(
+    "Seu apelido (aparece ao lado do nome, pra facilitar identificar).\nDeixe vazio pra remover:",
+    card.apelido || ""
+  );
+  if (novo === null) return; // cancelou
+  card.apelido = novo.trim() || null;
+  salvarJogadores();
+  renderApp();
 }
 
 export async function garantirVinculo({ forcado = false } = {}) {
@@ -217,8 +275,17 @@ export async function garantirVinculo({ forcado = false } = {}) {
   const sid = steamIdDoUser(user);
   if (!sid) return;
   if (vinculoOferecido && !forcado) return; // não reabre a cada snapshot
-  await aguardarDados();
-  if (jogadorPorSteam(sid)) return; // já vinculado, nada a fazer
+  if (!(await aguardarDados())) return; // dados não carregaram: não arrisca vínculo
+  if (jogadorPorSteam(sid)) {
+    // Já vinculado: puxa nome/avatar da Steam uma vez por sessão (ex.: recarregou logado).
+    if (!jaSincronizou) {
+      jaSincronizou = true;
+      buscarPerfilSteam(sid)
+        .then((perfil) => sincronizarDaSteam(jogadorPorSteam(sid), perfil))
+        .catch(() => {});
+    }
+    return;
+  }
   vinculoOferecido = true;
   if (!perfilPendente || perfilPendente.steamId !== sid) {
     // Recupera nome/avatar da Steam (ex.: recarregou a página já logado).
@@ -273,9 +340,22 @@ function mostrarVinculo() {
   abrir();
 }
 
+// Trava de segurança: gravar a lista de jogadores SEM os dados carregados
+// sobrescreveria o elenco inteiro com uma lista quase vazia (foi o que apagou
+// os players). Só grava se o snapshot realmente chegou.
+function dadosProntosOuAvisa() {
+  if (dadosCarregados()) return true;
+  alert(
+    "Os dados ainda não carregaram. Recarregue a página e tente de novo — " +
+      "assim a gente não sobrescreve o elenco por engano."
+  );
+  return false;
+}
+
 export function reivindicar(id) {
   const p = dados.players.find((x) => x.id === id);
   if (!p || !perfilPendente) return;
+  if (!dadosProntosOuAvisa()) return;
   p.steamId = perfilPendente.steamId;
   p.avatar = perfilPendente.avatar || "";
   p.profileUrl = perfilPendente.profileUrl || "";
@@ -286,6 +366,7 @@ export function reivindicar(id) {
 }
 export function criarNovoJogador() {
   if (!perfilPendente) return;
+  if (!dadosProntosOuAvisa()) return;
   dados.players.push({
     id: uid(),
     name: perfilPendente.name,
