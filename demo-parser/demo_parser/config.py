@@ -53,6 +53,51 @@ def demos_dir() -> Path:
     return Path(os.environ.get("DEMOS_DIR", "/demos"))
 
 
+def poll_interval_sec() -> int:
+    """Seconds between polls of DEMOS_DIR. Used by the F1 watcher.
+
+    Defaults to 30s. Out-of-range values raise so we never busy-loop.
+    """
+    raw = os.environ.get("POLL_INTERVAL_SEC", "30")
+    try:
+        n = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"POLL_INTERVAL_SEC must be an integer, got {raw!r}"
+        ) from exc
+    if n < 1:
+        raise RuntimeError(f"POLL_INTERVAL_SEC must be >= 1, got {n}")
+    return n
+
+
+def delete_after_process() -> bool:
+    """Whether to delete .dem files after processing (KEEP or DISCARD).
+
+    Defaults to True (retention: don't accumulate demos on disk).
+    Set DELETE_AFTER_PROCESS=false to keep the file for debugging.
+    """
+    raw = os.environ.get("DELETE_AFTER_PROCESS", "true").strip().lower()
+    return raw in ("1", "true", "yes", "on")
+
+
+def file_stability_sec() -> int:
+    """Minimum age (seconds) of a .dem before the watcher will parse it.
+
+    Guards against the downloader still writing the file when we try to
+    read it. Defaults to 5s.
+    """
+    raw = os.environ.get("FILE_STABILITY_SEC", "5")
+    try:
+        n = int(raw)
+    except ValueError as exc:
+        raise RuntimeError(
+            f"FILE_STABILITY_SEC must be an integer, got {raw!r}"
+        ) from exc
+    if n < 0:
+        raise RuntimeError(f"FILE_STABILITY_SEC must be >= 0, got {n}")
+    return n
+
+
 def has_firebase() -> bool:
     """True iff both SA path and DB URL are set and the SA file exists."""
     sa = firebase_sa_path()

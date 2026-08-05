@@ -8,6 +8,7 @@ and the service account file exists. This keeps the dry-run path
 from __future__ import annotations
 
 import os
+import sys
 from typing import Any
 
 import firebase_admin
@@ -68,3 +69,26 @@ def update_status(partial: dict[str, Any]) -> bool:
         return False
     root.child("pipeline/status").update(partial)
     return True
+
+
+def increment_discarded_filter(steam_id: str, n: int = 1) -> bool:
+    """Atomically increment `pipeline/status/{steam_id}.discardedByFilter` by n.
+
+    Called once per roster member present in a demo that was DISCARDed by
+    the group-match filter (plano v5 §6). Best-effort: logs and returns
+    False if no Firebase is configured or the transaction fails.
+    """
+    root = _init()
+    if root is None:
+        return False
+    try:
+        ref = root.child("pipeline/status").child(str(steam_id)).child("discardedByFilter")
+        ref.transaction(lambda current: (current or 0) + n)
+        return True
+    except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
+        print(
+            f"[demo_parser] WARN: failed to increment discardedByFilter for "
+            f"{steam_id}: {exc}",
+            file=sys.stderr,
+        )
+        return False
