@@ -8,6 +8,30 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!--
+  Firebase SDK (compat) — usado pra detectar sessao e checar se o user ja
+  onboarded. As config values sao publicas (Firebase Web SDK e' feito pra
+  ser embutido no browser). O gate de onboard REAL fica no SPA principal
+  (mamometro.guuilp.com/) — esta pagina standalone e' backup/legacy.
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyBytgfBplIS2zJmF5cleaQQ6Bqw6WS_A2k",
+      authDomain: "mamometro-ecee6.firebaseapp.com",
+      databaseURL: "https://mamometro-ecee6-default-rtdb.firebaseio.com",
+      projectId: "mamometro-ecee6",
+      storageBucket: "mamometro-ecee6.firebasestorage.app",
+      messagingSenderId: "584282763532",
+      appId: "1:584282763532:web:c27b2ad2297ee72e4b1929",
+    });
+  }
+  window.__fbAuth = firebase.auth();
+  window.__fbDb = firebase.database();
+</script>
 <style>
   :root{
     --bg:#17101d;--panel:#221729;--panel2:#2b1c34;--line:#3a2b42;
@@ -205,6 +229,99 @@
 </div>
 
 <script>
+  // ============== Auth state check (F1: detecta se ja onboarded) ==============
+  // Se o user ja ta logado via Firebase Auth E tem entry em roster/, mostra
+  // estado "voce ja esta no mamometro" em vez do form em branco.
+  const formSection = document.querySelector("section.card");
+  const formEl = document.getElementById("form");
+  const profileInput = document.getElementById("profileUrl");
+  const onboardedSection = document.createElement("section");
+  onboardedSection.className = "card";
+  onboardedSection.id = "onboarded-state";
+  onboardedSection.hidden = true;
+  formSection.insertAdjacentElement("afterend", onboardedSection);
+
+  function showOnboardedState(entry, steamId) {
+    const when = entry.updatedAt
+      ? new Date(entry.updatedAt).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "?";
+    onboardedSection.innerHTML = `
+      <h2 style="font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:4px;color:var(--mint);">✓ Você já está no Mamômetro</h2>
+      <p class="sub" style="color:var(--muted);font-size:.95rem;margin-bottom:18px;">
+        Tua SteamID <code style="background:var(--bg);padding:1px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--ink);">${steamId}</code>
+        está registrada desde <b style="color:var(--ink);">${when}</b>
+        como <b style="color:var(--ink);">${escapeHtml(entry.name || "(sem nome)")}</b>.
+        O bot já acompanha teus matches automaticamente.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn-org" href="/" style="text-decoration:none;display:inline-flex;align-items:center;">← Voltar ao ranking</a>
+        <button class="btn-org" type="button" id="re-onboard-btn" style="cursor:pointer;border:1px solid var(--line);">Re-onboardar (codes novos)</button>
+        <a class="btn-org" href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;">Wizard do CS2 ↗</a>
+      </div>
+      <div class="hint" style="margin-top:14px;color:var(--muted);font-size:.78rem;">
+        Re-onboardar atualiza teu <code>authCode</code> + <code>anchorCode</code> no roster.
+        Útil se o token persistente do CS2 expirar (a Valve regenera de vez em quando).
+      </div>
+    `;
+    onboardedSection.hidden = false;
+    formSection.hidden = true;
+    document.getElementById("re-onboard-btn").addEventListener("click", () => {
+      onboardedSection.hidden = true;
+      formSection.hidden = false;
+      // pre-fill o steamId (form recebe steamId puro, nao URL)
+      if (profileInput) profileInput.value = steamId;
+      // scroll pro form
+      formSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // Roda a checagem so' depois do Firebase SDK carregar
+  function checkOnboardState() {
+    if (!window.__fbAuth || !window.__fbDb) {
+      // SDK ainda nao carregou, tenta d'aqui a pouco
+      setTimeout(checkOnboardState, 100);
+      return;
+    }
+    window.__fbAuth.onAuthStateChanged(async (user) => {
+      if (!user) return; // sem sessao: mostra o form normal
+      const email = user.email || "";
+      const steamId = email.replace(/@mamometro\.gg$/, "");
+      if (!steamId || !/^\d{17}$/.test(steamId)) {
+        // conta sem steamId vinculado (raro): ignora e mostra form
+        return;
+      }
+      // pre-fill o campo steamId pra conveniência
+      if (profileInput) profileInput.value = steamId;
+      try {
+        const snap = await window.__fbDb.ref(`roster/${steamId}`).once("value");
+        const entry = snap.val();
+        if (entry && entry.status === "active") {
+          showOnboardedState(entry, steamId);
+        }
+        // se nao tiver entry, mostra o form normal (ja onboarded state escondido)
+      } catch (e) {
+        // permission denied ou erro de rede: silencioso, mostra form
+        console.warn("[onboard] check falhou:", e);
+      }
+    });
+  }
+  checkOnboardState();
+
   // ============== Submit handler ==============
   const form = document.getElementById("form");
   const status = document.getElementById("status");
