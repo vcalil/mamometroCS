@@ -39,10 +39,14 @@ function erro(statusCode, code, message) {
 
 // ---- input validation -------------------------------------------------------
 
-// AAAA-1111-BBBB (4 ou 5 chars alfanumericos por grupo, separados por hifen)
-const AUTH_CODE_RE = /^[A-Z0-9]{4,5}-[A-Z0-9]{4,5}-[A-Z0-9]{4,5}$/;
-// CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX (5 grupos de 5 alfanumericos, prefixo CSGO-)
-const SHARE_CODE_RE = /^CSGO-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$/;
+// AAAA-1111-BBBB (4 ou 5 chars alfanumericos por grupo, separados por hifen).
+// Mixed case aceito (CS2 pode gerar com qualquer caixa).
+const AUTH_CODE_RE = /^[A-Za-z0-9]{4,5}-[A-Za-z0-9]{4,5}-[A-Za-z0-9]{4,5}$/;
+// CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX (5 grupos de 5 alfanumericos, prefixo CSGO-).
+// IMPORTANTE: Steam gera com mixed case (ex. "CSGO-p8QNB-TUzXw-WA8oh-6sDxR-E8V5F")
+// e a API GetNextMatchSharingCode e CASE-SENSITIVE no match. Se o cliente upper-
+// casear antes de enviar, o codigo nao bate e a Steam devolve 412.
+const SHARE_CODE_RE = /^CSGO-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$/;
 const STEAM_ID_RE = /^\d{17}$/;
 
 function parseInput(body) {
@@ -52,8 +56,12 @@ function parseInput(body) {
   } catch {
     return { error: "JSON malformado no body." };
   }
-  const authCode = String(raw.authCode || "").toUpperCase().trim();
-  const shareCode = String(raw.shareCode || "").toUpperCase().trim();
+  // IMPORTANTE: NÃO fazer toUpperCase. Steam gera share codes com mixed case
+  // (ex. "CSGO-p8QNB-TUzXw-WA8oh-6sDxR-E8V5F") e o endpoint
+  // GetNextMatchSharingCode é case-sensitive — uppercasing quebra o match e a
+  // Steam devolve 412.
+  const authCode = String(raw.authCode || "").trim();
+  const shareCode = String(raw.shareCode || "").trim();
   const steamIdRaw = String(raw.steamId || "").trim();
   const profileUrl = String(raw.profileUrl || "").trim();
 
@@ -103,11 +111,24 @@ async function resolverVanity(vanity, key) {
 
 async function validarCodes(steamId, authCode, shareCode, key) {
   const url = `${STEAM}/ICSGOPlayers_730/GetNextMatchSharingCode/v1?key=${key}&steamid=${steamId}&steamidkey=${encodeURIComponent(authCode)}&knowncode=${encodeURIComponent(shareCode)}`;
+  // DEBUG: log de tudo que vai pra Steam (mascarado, sem a key)
+  console.log(`[onboard] validarCodes: steamid=${steamId} authCode=${authCode} shareCode=${shareCode} urlSteam=${STEAM}/ICSGOPlayers_730/GetNextMatchSharingCode/v1?steamid=${steamId}&steamidkey=${encodeURIComponent(authCode)}&knowncode=${encodeURIComponent(shareCode)}`);
   const r = await fetch(url);
   if (r.status === 403) {
     const e = new Error("authCode invalido ou expirado. Gera um novo no wizard da Valve.");
     e.statusCode = 400;
     e.code = "auth_code_invalid";
+    throw e;
+  }
+  if (r.status === 412) {
+    // "knowncode parameter is invalid or does not represent a match sharing code
+    // that belongs to the user" (Steam official quote). Quase sempre: share code
+    // de outra pessoa, de FACEIT, ou revogado.
+    let steamBody = "";
+    try { steamBody = await r.text(); } catch {}
+    const e = new Error(`Share code nao bate com a conta Steam (412). Steam body: ${steamBody.slice(0, 200) || "(vazio)"}. Confere se o share code e dessa mesma conta e de uma partida de Valve Matchmaking.`);
+    e.statusCode = 400;
+    e.code = "share_code_invalid";
     throw e;
   }
   if (!r.ok) {
