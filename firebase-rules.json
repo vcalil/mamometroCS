@@ -1,3 +1,75 @@
 {
-  "error": "Unauthorized request."
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "papeis": {
+      ".read": "auth != null",
+      "$steamid": {
+        ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || (root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador' && !data.exists() && newData.val() === 'organizador')",
+        ".validate": "!newData.exists() || newData.val() === 'master' || newData.val() === 'organizador'"
+      }
+    },
+    "estado": {
+      ".read": "auth != null",
+      "players": {
+        ".write": "auth != null"
+      },
+      "matches": {
+        ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'"
+      },
+      "meta": {
+        ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'"
+      }
+    },
+    "seasons": {
+      ".read": "auth != null",
+      ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master'"
+    },
+    "submissoes": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && (!data.exists() || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador')",
+        ".validate": "newData.hasChildren(['date', 'entries', 'autor', 'ts'])"
+      }
+    },
+    "propostas": {
+      ".read": "auth != null",
+      "$id": {
+        ".write": "auth != null && !data.exists()",
+        ".validate": "newData.hasChildren(['tipo', 'autor', 'ts'])",
+        "votos": {
+          "$steamid": {
+            ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador' && $steamid === auth.token.email.replace('@mamometro.gg', '')",
+            ".validate": "newData.isBoolean()"
+          }
+        },
+        "status": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'",
+          ".validate": "newData.isString()"
+        },
+        "aplicadaEm": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'"
+        },
+        "aplicadaPor": {
+          ".write": "root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'master' || root.child('papeis').child(auth.token.email.replace('@mamometro.gg', '')).val() === 'organizador'"
+        }
+      }
+    },
+    "gsi": {
+      "live": {
+        "$steamid": {
+          ".read": true,
+          ".write": true,
+          ".validate": "!newData.exists() || newData.hasChildren(['kills'])"
+        }
+      },
+      "pending": {
+        ".read": "auth != null",
+        "$id": {
+          ".write": "auth != null || !data.exists()",
+          ".validate": "newData.hasChildren(['steamId', 'kills', 'damage', 'ts'])"
+        }
+      }
+    }
+  }
 }
