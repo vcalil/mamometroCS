@@ -142,25 +142,14 @@ export function renderOnboardGate(steamId) {
 
   el.innerHTML = `
     <div class="setup" id="onboard-gate" style="max-width:680px;margin:24px auto;padding:28px;">
-      <h3 style="font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:6px;">Bem-vindo ao Mamômetro</h3>
+      <h3 style="font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:6px;">Rastreamento automático de partidas</h3>
       <div class="sub" style="color:var(--muted);font-size:.95rem;margin-bottom:18px;">
-        Antes de ver o ranking, você precisa registrar tua conta Steam no bot de demos.
-        São 2 códigos, leva 2 min.
+        <b>Nova feature:</b> ativa o bot pra puxar e processar automaticamente todas as tuas próximas
+        partidas de CS2. Cola os 2 códigos abaixo — o <em>Match History Access Code</em> é o
+        token persistente que a Steam te dá, e o <em>share code</em> é o ponto de partida de
+        onde o bot começa a caminhar pra trás. Depois de ativar, o bot cuida dos próximos
+        matches sozinho.
       </div>
-
-      <ol class="steps" style="margin:0 0 18px 20px;line-height:1.7;font-size:.9rem;">
-        <li>
-          <a href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener">Abra o wizard oficial do CS2</a>
-          em outra aba, faça login na Steam se pedir, e gere o <b>Match History Access Code</b>.
-          É o token persistente do CS2 (formato <code>AAAA-1111-BBBB</code>) — <b>não</b> confunde com o "Login Auth Code" de 5 minutos do Steam client.
-        </li>
-        <li>
-          Jogue uma partida de CS2 (Premier/Competitive/etc — Valve Matchmaking, não FACEIT) e copie o <em>share code</em>:
-          menu principal → <b>Watch</b> → <b>Your Matches</b> → última partida → <b>Copy Share Code</b>
-          (formato <code>CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</code>).
-        </li>
-        <li>Cole os 2 códigos aqui embaixo.</li>
-      </ol>
 
       <form id="onboard-form" novalidate>
         <label for="ob-auth" style="display:block;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px;">

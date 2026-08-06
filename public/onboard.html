@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Entrar no Mamômetro</title>
-<meta name="description" content="Onboarding self-serve pro Mamômetro — cola teu auth code e share code da Steam e o bot cuida dos próximos.">
+<title>Rastreamento automático de partidas — Mamômetro CS</title>
+<meta name="description" content="Ativa o bot de detecção automática de partidas: cola o Match History Access Code e o share code da última partida de CS2, e o bot passa a acompanhar todas as tuas próximas demos.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -146,24 +146,13 @@
   <div id="banner" hidden></div>
 
   <section class="card" id="form-card">
-    <h2>Entrar no Mamômetro</h2>
-    <p class="sub">Rastreamento automático de demos das partidas do grupo. Cola as informações da tua conta Steam abaixo.</p>
-
-    <ol class="steps">
-      <li>
-        <b>Identifica tua conta Steam</b> — abre <a href="https://steamcommunity.com" target="_blank" rel="noopener">steamcommunity.com</a> em outra aba,
-        clica no teu nome de usuário (canto superior direito) e copia a URL do perfil que aparece na barra de endereço.
-        Vai ser tipo <code>https://steamcommunity.com/id/<i>teu_nick</i>/</code> ou <code>https://steamcommunity.com/profiles/<i>17digitos</i>/</code>.
-      </li>
-      <li>
-        <a href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener">Abra o wizard oficial do CS2</a>
-        em outra aba, faça login na Steam se pedir, e gere o <b>Match History Access Code</b>.
-        É o token persistente do CS2 (formato <code>AAAA-1111-BBBB</code>) — <b>não</b> confunde com o "Login Auth Code" de 5 minutos do Steam client.
-        <div class="hint" style="margin-top:6px">Se o link não carregar o formulário, vê as instruções detalhadas <a href="https://developer.valvesoftware.com/wiki/Counter-Strike:_Global_Offensive_Access_Match_History" target="_blank" rel="noopener">aqui</a> (wiki oficial).</div>
-      </li>
-      <li>Jogue uma partida de CS2 e copie o <em>share code</em> do final do match: menu principal → <b>Watch</b> → <b>Your Matches</b> → última partida → <b>Copy Share Code</b> (formato <code>CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</code>).</li>
-      <li>Cole tudo aqui embaixo. <b>Você só precisa fazer isso uma vez</b> — o bot cuida dos próximos share codes automaticamente. Se o teu <em>Match History Access Code</em> expirar um dia, volta aqui e re-onboarda.</li>
-    </ol>
+    <h2>Rastreamento automático de partidas</h2>
+    <p class="sub">
+      <b>Nova feature:</b> ativa o bot pra puxar e processar automaticamente todas as tuas próximas
+      partidas de CS2. Cola os 2 códigos abaixo — o <em>Match History Access Code</em> é o token
+      persistente que a Steam te dá, e o <em>share code</em> é o ponto de partida de onde o bot
+      começa a caminhar pra trás. Depois de ativar, o bot cuida dos próximos matches sozinho.
+    </p>
 
     <form id="form" novalidate>
       <label for="profileUrl">

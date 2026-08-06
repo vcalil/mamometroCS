@@ -152,15 +152,22 @@ if (configurado) {
       onValue(
         ref(db, "estado"),
         (snap) => {
-          // Se ainda nao onboarded, NAO aplicar o snapshot — gate ta no caminho
-          if (window.__mamometroOnboardState !== "onboarded") return;
+          // F1: SEMPRE carrega os dados do estado, mesmo se o user nao onboarded
+          // ainda. O gate de onboard e' so' pro form, nao pros dados — o user
+          // pode ver o ranking (com os 10 players) antes de onboardar. O gate
+          // que renderApp() desenha em cima quando state != 'onboarded'.
           aplicarSnapshot(snap.val() || {});
           marcarLive(true);
-          conta.renderApp(); // muro de login x ranking, já com os dados novos
-          // Logado sem card do histórico? Oferece o vínculo (uma vez).
-          conta.garantirVinculo();
-          // Se o painel estiver aberto, atualiza o histórico ao vivo.
-          if (document.getElementById("pn-jog")) admin.renderHistorico();
+          if (window.__mamometroOnboardState === "onboarded") {
+            conta.renderApp(); // so re-renderiza se j'a onboarded (senao o gate fica)
+            // Logado sem card do histórico? Oferece o vínculo (uma vez).
+            conta.garantirVinculo();
+            // Se o painel estiver aberto, atualiza o histórico ao vivo.
+            if (document.getElementById("pn-jog")) admin.renderHistorico();
+          } else {
+            // Nao onboarded: atualiza so o "live" indicator, gate continua
+            marcarLive(true);
+          }
         },
         () => marcarLive(false)
       )
