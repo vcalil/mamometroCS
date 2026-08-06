@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rastreamento automático de partidas — Mamômetro CS</title>
-<meta name="description" content="Ativa o bot de detecção automática de partidas: cola o Match History Access Code e o share code da última partida de CS2, e o bot passa a acompanhar todas as tuas próximas demos.">
+<meta name="description" content="Ativa o bot de detecção automática de partidas: cola o código de autenticação e o token da tua partida mais recente de CS2, e o bot passa a acompanhar todas as tuas próximas demos.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -169,9 +169,10 @@
     <h2>Rastreamento automático de partidas</h2>
     <p class="sub">
       <b>Nova feature:</b> ativa o bot pra puxar e processar automaticamente todas as tuas próximas
-      partidas de CS2. Cola os 2 códigos abaixo — o <em>Match History Access Code</em> é o token
-      persistente que a Steam te dá, e o <em>share code</em> é o ponto de partida de onde o bot
-      começa a caminhar pra trás. Depois de ativar, o bot cuida dos próximos matches sozinho.
+      partidas de CS2. Cola os 2 códigos abaixo — o <em>código de autenticação</em> é o
+      token persistente que a Steam te dá, e o <em>token da partida mais recente</em> é o
+      ponto de partida de onde o bot começa a caminhar pra trás. Depois de ativar,
+      o bot cuida dos próximos matches sozinho.
     </p>
 
     <form id="form" novalidate>
@@ -193,7 +194,7 @@
       <div class="hint" id="profileUrl-hint">A URL completa do teu perfil Steam, ou teu SteamID64 (17 dígitos). O bot usa pra te identificar no roster.</div>
 
       <label for="authCode">
-        Match History Access Code (CS2)
+        Código de autenticação
         <span class="req" aria-hidden="true">*</span>
       </label>
       <input
@@ -207,10 +208,10 @@
         placeholder="AAAA-1111-BBBB"
         aria-describedby="authCode-hint"
       >
-      <div class="hint" id="authCode-hint">Gerado pelo <a href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener">wizard do CS2</a>. É persistente (não expira em 5 min). Se já tens um gerado, ele aparece na mesma página — pode usar o que já tens.</div>
+      <div class="hint" id="authCode-hint">Gerado pelo <a href="https://help.steampowered.com/pt/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener">wizard do CS2</a>. É persistente (não expira em 5 min). Se já tens um gerado, ele aparece na mesma página — pode usar o que já tens.</div>
 
       <label for="shareCode">
-        Share code da última partida
+        Token da tua partida mais recente
         <span class="req" aria-hidden="true">*</span>
       </label>
       <input
@@ -271,7 +272,7 @@
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <a class="btn-org" href="/" style="text-decoration:none;display:inline-flex;align-items:center;">← Voltar ao ranking</a>
         <button class="btn-org" type="button" id="re-onboard-btn" style="cursor:pointer;border:1px solid var(--line);">Re-onboardar (codes novos)</button>
-        <a class="btn-org" href="https://help.steampowered.com/en/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;">Wizard do CS2 ↗</a>
+        <a class="btn-org" href="https://help.steampowered.com/pt/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;">Wizard do CS2 ↗</a>
       </div>
       <div class="hint" style="margin-top:14px;color:var(--muted);font-size:.78rem;">
         Re-onboardar atualiza teu <code>authCode</code> + <code>anchorCode</code> no roster.

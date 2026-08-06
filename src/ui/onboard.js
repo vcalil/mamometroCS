@@ -145,15 +145,15 @@ export function renderOnboardGate(steamId) {
       <h3 style="font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:6px;">Rastreamento automático de partidas</h3>
       <div class="sub" style="color:var(--muted);font-size:.95rem;margin-bottom:18px;">
         <b>Nova feature:</b> ativa o bot pra puxar e processar automaticamente todas as tuas próximas
-        partidas de CS2. Cola os 2 códigos abaixo — o <em>Match History Access Code</em> é o
-        token persistente que a Steam te dá, e o <em>share code</em> é o ponto de partida de
-        onde o bot começa a caminhar pra trás. Depois de ativar, o bot cuida dos próximos
-        matches sozinho.
+        partidas de CS2. Cola os 2 códigos abaixo — o <em>código de autenticação</em> é o
+        token persistente que a Steam te dá, e o <em>token da partida mais recente</em> é o
+        ponto de partida de onde o bot começa a caminhar pra trás. Depois de ativar,
+        o bot cuida dos próximos matches sozinho.
       </div>
 
       <form id="onboard-form" novalidate>
         <label for="ob-auth" style="display:block;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px;">
-          Match History Access Code (CS2)
+          Código de autenticação
         </label>
         <input
           id="ob-auth"
@@ -168,7 +168,7 @@ export function renderOnboardGate(steamId) {
         >
 
         <label for="ob-share" style="display:block;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px;">
-          Share code da última partida
+          Token da tua partida mais recente
         </label>
         <input
           id="ob-share"
