@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entrar no Mamômetro</title>
+<meta name="description" content="Onboarding self-serve pro Mamômetro — cola teu auth code e share code da Steam e o bot cuida dos próximos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#17101d;--panel:#221729;--panel2:#2b1c34;--line:#3a2b42;
+    --ink:#f6eef2;--muted:#a892b0;--gold:#ffc24b;--coral:#ff5470;--mint:#4be3b0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(255,84,112,.14), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(75,227,176,.10), transparent 55%),
+      var(--bg);
+    color:var(--ink);font-family:"Inter",system-ui,-apple-system,sans-serif;
+    line-height:1.5;min-height:100vh;
+  }
+  a{color:var(--coral);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:680px;margin:0 auto;padding:24px 18px 80px}
+
+  header.topo{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:24px;
+  }
+  .marca{display:flex;flex-direction:column}
+  .marca h1{
+    font-family:"Anton",sans-serif;font-weight:400;font-size:clamp(2.2rem,8vw,3.4rem);
+    letter-spacing:.5px;line-height:.9;text-transform:uppercase;
+  }
+  .marca h1 .o{color:var(--coral)}
+  .marca .tag{color:var(--muted);font-size:.78rem;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
+  .topo-acoes{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-org{
+    display:inline-flex;align-items:center;justify-content:center;
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    font-family:"Inter";font-size:.8rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+    padding:9px 14px;border-radius:999px;cursor:pointer;transition:.15s;white-space:nowrap;
+    text-decoration:none;
+  }
+  .btn-org:hover{border-color:var(--coral);color:var(--ink);text-decoration:none}
+
+  /* Banner "já está no roster" */
+  .banner{
+    background:linear-gradient(180deg,var(--panel2),var(--panel));
+    border:1px solid rgba(75,227,176,.35);
+    border-radius:14px;padding:16px 18px;margin-bottom:20px;
+    display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;
+  }
+  .banner .dot{width:10px;height:10px;border-radius:50%;background:var(--mint);margin-top:6px;box-shadow:0 0 10px var(--mint);flex:none}
+  .banner .txt{flex:1;min-width:0}
+  .banner .txt b{font-family:"Space Mono";font-weight:700}
+  .banner .since{color:var(--muted);font-size:.85rem;margin-top:2px}
+  .banner .re{font-size:.78rem;text-transform:uppercase;letter-spacing:1px;padding:7px 12px}
+
+  /* Form */
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .card h2{font-family:"Anton",sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:4px}
+  .card .sub{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+  .steps{margin:0 0 22px 20px;line-height:1.7;font-size:.92rem;color:var(--ink)}
+  .steps li{margin-bottom:6px}
+  .steps code{background:var(--bg);padding:1px 6px;border-radius:5px;font-family:"Space Mono",monospace;font-size:.85em}
+  .steps b{color:var(--gold)}
+
+  label{display:block;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px}
+  label .req{color:var(--coral);margin-left:3px}
+  input{
+    width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:12px 13px;font-family:"Space Mono",monospace;font-size:1rem;
+    text-transform:uppercase;letter-spacing:1px;
+  }
+  input:focus{outline:none;border-color:var(--coral)}
+  input:invalid:not(:placeholder-shown){border-color:var(--coral)}
+  .hint{color:var(--muted);font-size:.78rem;margin-top:4px}
+  .btn{
+    background:var(--coral);color:#2a0713;border:none;border-radius:10px;
+    padding:13px 16px;font-family:"Inter";font-weight:700;font-size:.95rem;
+    cursor:pointer;transition:.15s;width:100%;margin-top:18px;text-transform:uppercase;letter-spacing:1px;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Status box */
+  #status{min-height:1.2em;margin-top:16px;font-size:.95rem}
+  #status[data-kind="pending"]{color:var(--muted)}
+  #status[data-kind="ok"]{color:var(--mint)}
+  #status[data-kind="err"]{color:var(--coral)}
+  #status a{color:inherit;text-decoration:underline}
+
+  footer.foot{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center;letter-spacing:1px;text-transform:uppercase}
+  footer.foot a{color:var(--muted)}
+  footer.foot a:hover{color:var(--ink)}
+
+  @media (max-width:520px){
+    .card{padding:18px}
+    header.topo{align-items:flex-start}
+    .marca h1{font-size:2rem}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topo">
+    <div class="marca">
+      <h1>MAM<span class="o">Ô</span>METRO</h1>
+      <div class="tag">Entrar no grupo</div>
+    </div>
+    <div class="topo-acoes">
+      <a class="btn-org" href="/">← Voltar ao ranking</a>
+    </div>
+  </header>
+
+  <div id="banner" hidden></div>
+
+  <section class="card" id="form-card">
+    <h2>Entrar no Mamômetro</h2>
+    <p class="sub">Rastreamento automático de demos das partidas do grupo. Cola as informações da tua conta Steam abaixo.</p>
+
+    <ol class="steps">
+      <li>Abra o <a href="https://steamcommunity.com/dev/generatesteamlogincode" target="_blank" rel="noopener">wizard da Steam</a> em outra aba, faça login, e copie o <b>auth code persistente</b> gerado (formato <code>AAAA-1111-BBBB</code>).</li>
+      <li>Jogue uma partida de CS2 e copie o <em>share code</em> do final do match (botão direito no placar → "Copy Share Code"; formato <code>CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX</code>).</li>
+      <li>Cole os dois códigos aqui. <b>Você só precisa fazer isso uma vez</b> — o bot cuida dos próximos share codes automaticamente.</li>
+    </ol>
+
+    <form id="form" novalidate>
+      <label for="authCode">
+        Auth code
+        <span class="req" aria-hidden="true">*</span>
+      </label>
+      <input
+        id="authCode"
+        name="authCode"
+        type="text"
+        required
+        autocomplete="off"
+        spellcheck="false"
+        pattern="^[A-Z0-9]{4,5}-[A-Z0-9]{4,5}-[A-Z0-9]{4,5}$"
+        placeholder="AAAA-1111-BBBB"
+        aria-describedby="authCode-hint"
+      >
+      <div class="hint" id="authCode-hint">O "auth code" persistente, não o de 5 minutos. Gera em <code>steamcommunity.com/dev/generatesteamlogincode</code>.</div>
+
+      <label for="shareCode">
+        Share code
+        <span class="req" aria-hidden="true">*</span>
+      </label>
+      <input
+        id="shareCode"
+        name="shareCode"
+        type="text"
+        required
+        autocomplete="off"
+        spellcheck="false"
+        pattern="^CSGO-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}-[A-Z0-9]{5}$"
+        placeholder="CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+        aria-describedby="shareCode-hint"
+      >
+      <div class="hint" id="shareCode-hint">Aparece no menu pós-match do CS2 (botão direito no placar → Copy Share Code).</div>
+
+      <button class="btn" type="submit" id="submit-btn">Entrar no Mamômetro</button>
+    </form>
+
+    <div id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <footer class="foot">
+    <a href="/">← Voltar ao ranking</a>
+  </footer>
+</div>
+
+<script>
+  // ============== Submit handler ==============
+  const form = document.getElementById("form");
+  const status = document.getElementById("status");
+  const submitBtn = document.getElementById("submit-btn");
+  const banner = document.getElementById("banner");
+
+  function setStatus(text, kind) {
+    status.textContent = text;
+    if (kind) status.dataset.kind = kind;
+    else delete status.dataset.kind;
+  }
+
+  function friendlyError(body) {
+    const code = body && body.error;
+    const msg = body && body.message;
+    switch (code) {
+      case "auth_code_invalid":
+        return "A Steam rejeitou o par de codes. Causas comuns: code colado errado, code gerado há muito tempo, ou share code não é dessa conta. Gera um novo par e tenta de novo.";
+      case "profile_not_found":
+        return "Perfil da Steam não encontrado. Confere a URL/ID e tenta de novo.";
+      case "invalid_input":
+      case "invalid_profile_url":
+        return msg || "Algum campo está em formato errado. Confere o formato (AAAA-1111-BBBB e CSGO-XXXXX-...-XXXXX).";
+      case "steam_api_key_missing":
+      case "firebase_not_configured":
+      case "firebase_init_failed":
+        return "Erro de configuração do servidor. Avisa o admin.";
+      case "method_not_allowed":
+        return "Método errado. Recarrega a página e tenta de novo.";
+      default:
+        return msg || "Erro inesperado. Tenta de novo em alguns segundos.";
+    }
+  }
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    setStatus("Validando com a Steam…", "pending");
+    submitBtn.disabled = true;
+
+    // Pega via FormData (mais robusto que .value pra campos com pattern)
+    const data = Object.fromEntries(new FormData(form));
+    // Normaliza pra UPPER (regex do server espera UPPER)
+    data.authCode = (data.authCode || "").toUpperCase().trim();
+    data.shareCode = (data.shareCode || "").toUpperCase().trim();
+
+    try {
+      const r = await fetch("/api/onboard", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      let body = {};
+      try { body = await r.json(); } catch { /* tolerante a corpo não-JSON */ }
+
+      if (r.ok && body.ok) {
+        // Persiste o steamId pra próxima visita mostrar o banner "já está no roster"
+        if (body.steamId) localStorage.setItem(STORAGE_KEY, body.steamId);
+        setStatus(`Pronto! Você está no Mamômetro como ${body.name || "novo membro"}. Não precisa fazer isso de novo.`, "ok");
+        form.querySelectorAll("input").forEach((i) => { i.disabled = true; });
+        submitBtn.textContent = "Já onboardado ✓";
+        // Esconde banner (se estava visível) — estamos onboarded agora
+        banner.hidden = true;
+      } else {
+        setStatus(friendlyError(body), "err");
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      setStatus("Erro de rede. Tenta de novo em alguns segundos.", "err");
+      submitBtn.disabled = false;
+    }
+  });
+
+  // ============== "Já está no roster?" check ==============
+  // O endpoint GET /api/onboard?steamId=X existe no backend; aqui só lembramos
+  // o steamId em localStorage depois de um onboard bem-sucedido (extraído da
+  // URL se um admin colou, ou setado manualmente no futuro).
+  const STORAGE_KEY = "mamometro.onboarded.steamId";
+
+  function formatSince(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    } catch { return iso; }
+  }
+
+  async function checarStatus() {
+    let steamId = localStorage.getItem(STORAGE_KEY);
+    // Permite o admin colar ?steamId= na URL pra forçar checagem
+    const url = new URL(window.location.href);
+    const fromQuery = url.searchParams.get("steamId");
+    if (fromQuery && /^\d{17}$/.test(fromQuery)) {
+      steamId = fromQuery;
+      localStorage.setItem(STORAGE_KEY, steamId);
+    }
+    if (!steamId) return; // primeira visita: sem memória, segue o flow normal
+
+    try {
+      const r = await fetch(`/api/onboard?steamId=${encodeURIComponent(steamId)}`);
+      if (!r.ok) return; // silencioso — não bloqueia o form
+      const body = await r.json();
+      if (body && body.onboarded) {
+        banner.innerHTML = `
+          <span class="dot" aria-hidden="true"></span>
+          <div class="txt">
+            <div><b>Você já está no Mamômetro.</b> Não precisa fazer de novo.</div>
+            <div class="since">Desde ${formatSince(body.since)}.</div>
+          </div>
+          <a class="btn-org re" href="#form-card">Re-onboardar</a>
+        `;
+        banner.hidden = false;
+      }
+    } catch { /* offline, ignora */ }
+  }
+
+  checarStatus();
+</script>
+</body>
+</html>

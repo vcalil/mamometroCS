@@ -158,9 +158,55 @@ function initFirebase() {
 
 // ---- handler ---------------------------------------------------------------
 
+// F1 Fase 4: GET /api/onboard?steamId=X — checa se o jogador ja esta no roster
+// (sem mexer nas regras do RTDB; usa o Admin SDK que ja esta wirado).
+//
+//   200 { onboarded: true, since: "<iso>" }   se roster/{steamId}.status === "active"
+//   200 { onboarded: false }                  se nao existe ou status != "active"
+//   400 { ok: false, error: "invalid_input" } se steamId malformado
+//   500 { ok: false, error: "firebase_not_configured" | "firebase_init_failed" }
+async function handleGet(event) {
+  const steamId = String(
+    (event.queryStringParameters && event.queryStringParameters.steamId) || "",
+  ).trim();
+
+  if (!STEAM_ID_RE.test(steamId)) {
+    return erro(400, "invalid_input", "steamId invalido. Esperado 17 digitos.");
+  }
+
+  if (!process.env.FIREBASE_SA_PATH || !process.env.FIREBASE_DATABASE_URL) {
+    return erro(
+      500,
+      "firebase_not_configured",
+      "FIREBASE_SA_PATH e FIREBASE_DATABASE_URL precisam estar no .env.",
+    );
+  }
+
+  let app;
+  try {
+    app = initFirebase();
+  } catch (e) {
+    return erro(500, "firebase_init_failed", e.message || "Nao consegui inicializar o Firebase Admin SDK.");
+  }
+  if (!app) {
+    return erro(500, "firebase_init_failed", "Nao consegui inicializar o Firebase Admin SDK.");
+  }
+
+  const db = admin.database();
+  const snap = await db.ref(`roster/${steamId}`).once("value");
+  const entry = snap.val();
+  if (entry && entry.status === "active") {
+    return json(200, { onboarded: true, since: entry.updatedAt || null });
+  }
+  return json(200, { onboarded: false });
+}
+
 export const handler = async (event) => {
+  if (event.httpMethod === "GET") {
+    return handleGet(event);
+  }
   if (event.httpMethod !== "POST") {
-    return erro(405, "method_not_allowed", "Use POST.");
+    return erro(405, "method_not_allowed", "Use POST ou GET.");
   }
 
   const key = process.env.STEAM_API_KEY;
