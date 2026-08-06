@@ -17,12 +17,17 @@ import { usuarioAtual } from "../auth.js";
 // "onboarded"   = ja tem entry em roster/{steamId}, libera o app
 // "not_onboarded" = logado mas sem entry, mostra o form
 let estado = "loading";
+let checkEmCurso = null; // promise do checarOnboard atual (deduplica chamadas)
 
 export function estadoOnboard() {
   return estado;
 }
 
 export async function checarOnboard() {
+  // Deduplica: se ja tem um check rolando, reusa. Evita a race condition
+  // onde o check inicial e um re-check (ex. depois de um erro de submit)
+  // batem cabeça e o segundo resultado sobrescreve o primeiro.
+  if (checkEmCurso) return checkEmCurso;
   const user = usuarioAtual();
   if (!user) {
     estado = "loading";
@@ -33,18 +38,30 @@ export async function checarOnboard() {
     estado = "not_onboarded";
     return "not_onboarded";
   }
-  estado = "loading";
-  try {
-    const snap = await get(ref(db, `roster/${steamId}`));
-    const entry = snap.val();
-    estado = entry && entry.status === "active" ? "onboarded" : "not_onboarded";
-  } catch (e) {
-    // Em caso de erro de rede, deixa passar (assume nao-onboarded pra forçar
-    // o form, que e' o caminho conservador).
-    console.warn("[onboard] check falhou:", e);
-    estado = "not_onboarded";
-  }
-  return estado;
+  checkEmCurso = (async () => {
+    estado = "loading";
+    try {
+      const snap = await get(ref(db, `roster/${steamId}`));
+      const entry = snap.val();
+      // IMPORTANTE: nao sobrescreve "onboarded" setado por um submit recente
+      // (window.__mamometroOnboardState ja' em "onboarded" e o RTDB ainda nao
+      // propagou). So atualiza se o state global ainda for "loading" (i.e.,
+      // nao houve submit recente).
+      const novoEstado = entry && entry.status === "active" ? "onboarded" : "not_onboarded";
+      if (window.__mamometroOnboardState !== "onboarded") {
+        estado = novoEstado;
+      }
+    } catch (e) {
+      console.warn("[onboard] check falhou:", e);
+      if (window.__mamometroOnboardState !== "onboarded") {
+        estado = "not_onboarded";
+      }
+    } finally {
+      checkEmCurso = null;
+    }
+    return estado;
+  })();
+  return checkEmCurso;
 }
 
 export function marcarOnboarded() {
@@ -55,6 +72,9 @@ export function marcarOnboarded() {
   if (typeof window !== "undefined") {
     window.__mamometroOnboardState = "onboarded";
   }
+  // Limpa o check pendente pra nao ter race (o check pode voltar com
+  // "not_onboarded" do RTDB antes da propagacao da escrita).
+  checkEmCurso = null;
 }
 
 // Submete o form de onboard. steamId vem do usuario logado (NUNCA do form).
@@ -64,15 +84,20 @@ export async function submeterOnboard(authCode, shareCode) {
   const steamId = steamIdDoUser(user);
   if (!steamId) throw new Error("Conta sem steamId vinculado. Recarrega e tenta de novo.");
 
-  const r = await fetch("/api/onboard", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      steamId, // derivado do auth, nao confia em input
-      authCode: (authCode || "").trim(),
-      shareCode: (shareCode || "").trim(),
-    }),
-  });
+  let r;
+  try {
+    r = await fetch("/api/onboard", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        steamId, // derivado do auth, nao confia em input
+        authCode: (authCode || "").trim(),
+        shareCode: (shareCode || "").trim(),
+      }),
+    });
+  } catch (e) {
+    throw new Error("Erro de rede. Verifica tua conexao e tenta de novo.");
+  }
   let body = {};
   try {
     body = await r.json();
@@ -188,20 +213,40 @@ export function renderOnboardGate(steamId) {
 
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
-    status.textContent = "Validando com a Steam…";
+    status.innerHTML = "Validando com a Steam…";
     status.style.color = "var(--muted)";
     submitBtn.disabled = true;
     const data = Object.fromEntries(new FormData(form));
     try {
       const body = await submeterOnboard(data.authCode, data.shareCode);
-      status.textContent = `Pronto! Você está no Mamômetro como ${body.name || "novo membro"}. Carregando o ranking…`;
+      status.innerHTML = `✅ Pronto! Você está no Mamômetro como <b>${escapeHtml(body.name || "novo membro")}</b>. Carregando o ranking…`;
       status.style.color = "var(--mint)";
-      // Sinaliza pro conta.js re-renderizar (libera o gate)
+      // Belt-and-suspenders: chama renderApp() direto E dispara o event.
+      // O event e' pro main.js re-renderizar; o direto e' caso o listener
+      // nao esteja registrado (improvavel mas defensivo).
       window.dispatchEvent(new CustomEvent("mamometro:onboard-done"));
+      import("./conta.js").then((m) => m.renderApp());
     } catch (e) {
-      status.textContent = e.message;
-      status.style.color = "var(--coral)";
+      // Erro fica bem visivel. Botao "re-verificar status" pra forcar um
+      // novo check (cobre caso o submit deu certo mas o check ainda nao viu
+      // a propagacao no RTDB).
+      status.innerHTML = `
+        <div style="color:var(--coral);font-weight:600;margin-bottom:8px;">❌ ${escapeHtml(e.message)}</div>
+        <button type="button" id="ob-recheck" class="btn-org" style="margin-top:4px;">
+          Já fiz onboard antes, re-verificar status
+        </button>
+      `;
       submitBtn.disabled = false;
+      const recheckBtn = document.getElementById("ob-recheck");
+      if (recheckBtn) {
+        recheckBtn.addEventListener("click", async () => {
+          recheckBtn.disabled = true;
+          recheckBtn.textContent = "Verificando…";
+          await checarOnboard();
+          // apos re-check, renderApp() decide se mostra o ranking ou o gate
+          import("./conta.js").then((m) => m.renderApp());
+        });
+      }
     }
   });
 }
