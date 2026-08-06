@@ -273,9 +273,34 @@ def _cmd_watch() -> int:
                         f"[demo_parser] ERROR processing {entry.name}: {exc}",
                         file=sys.stderr,
                     )
-                    # Do NOT add to processed — next poll will retry. For
-                    # a permanently broken file, the operator should
-                    # remove it from DEMOS_DIR manually.
+                    # F1: arquivo que falhou (corrupto, formato invalido, panic
+                    # do demoparser2) e' MOVIDO pra quarantine/ em vez de
+                    # ficar no loop infinito. Garante que /demos nao acumula
+                    # lixo. O operador pode inspecionar /demos/quarantine/
+                    # se quiser investigar.
+                    try:
+                        quarantine = demos_dir / "quarantine"
+                        quarantine.mkdir(exist_ok=True)
+                        dest = quarantine / f"FAILED-{entry.name}"
+                        i = 1
+                        while dest.exists():
+                            dest = quarantine / f"FAILED-{entry.name}.{i}"
+                            i += 1
+                        entry.rename(dest)
+                        processed.add(key)  # nao retentar, ja' foi movido
+                        print(
+                            f"[demo_parser] moved {entry.name} -> {dest.name} "
+                            f"(reason: {type(exc).__name__})",
+                            file=sys.stderr,
+                        )
+                    except OSError as qexc:
+                        # Se nao conseguir mover (perms, etc), loga mas nao
+                        # adiciona ao processed — proxima iteracao tenta de novo.
+                        print(
+                            f"[demo_parser] WARN: could not quarantine "
+                            f"{entry.name}: {qexc}",
+                            file=sys.stderr,
+                        )
         except BaseException as exc:
             if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                 raise

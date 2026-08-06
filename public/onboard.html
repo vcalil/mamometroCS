@@ -1,0 +1,509 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rastreamento automático de partidas — Mamômetro CS</title>
+<meta name="description" content="Ativa o bot de detecção automática de partidas: cola o código de autenticação e o token da tua partida mais recente de CS2, e o bot passa a acompanhar todas as tuas próximas demos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!--
+  Firebase SDK (compat) — usado pra detectar sessao e checar se o user ja
+  onboarded. As config values sao publicas (Firebase Web SDK e' feito pra
+  ser embutido no browser). Esta pagina e' o backup standalone do flow
+  de onboard; o gate principal fica no SPA (mamometro.guuilp.com/).
+-->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyBytgfBplIS2zJmF5cleaQQ6Bqw6WS_A2k",
+      authDomain: "mamometro-ecee6.firebaseapp.com",
+      databaseURL: "https://mamometro-ecee6-default-rtdb.firebaseio.com",
+      projectId: "mamometro-ecee6",
+      storageBucket: "mamometro-ecee6.firebasestorage.app",
+      messagingSenderId: "584282763532",
+      appId: "1:584282763532:web:c27b2ad2297ee72e4b1929",
+    });
+  }
+  window.__fbAuth = firebase.auth();
+  window.__fbDb = firebase.database();
+</script>
+<style>
+  :root{
+    --bg:#17101d;--panel:#221729;--panel2:#2b1c34;--line:#3a2b42;
+    --ink:#f6eef2;--muted:#a892b0;--gold:#ffc24b;--coral:#ff5470;--mint:#4be3b0;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(255,84,112,.14), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(75,227,176,.10), transparent 55%),
+      var(--bg);
+    color:var(--ink);font-family:"Inter",system-ui,-apple-system,sans-serif;
+    line-height:1.5;min-height:100vh;
+  }
+  a{color:var(--coral);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .wrap{max-width:680px;margin:0 auto;padding:24px 18px 80px}
+
+  header.topo{
+    display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;
+    border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:24px;
+  }
+  .marca{display:flex;flex-direction:column}
+  .marca h1{
+    font-family:"Anton",sans-serif;font-weight:400;font-size:clamp(2.2rem,8vw,3.4rem);
+    letter-spacing:.5px;line-height:.9;text-transform:uppercase;
+  }
+  .marca h1 .o{color:var(--coral)}
+  .marca .tag{color:var(--muted);font-size:.78rem;letter-spacing:2px;text-transform:uppercase;margin-top:6px}
+  .topo-acoes{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .btn-org{
+    display:inline-flex;align-items:center;justify-content:center;
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    font-family:"Inter";font-size:.8rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+    padding:9px 14px;border-radius:999px;cursor:pointer;transition:.15s;white-space:nowrap;
+    text-decoration:none;
+  }
+  .btn-org:hover{border-color:var(--coral);color:var(--ink);text-decoration:none}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px}
+  .card h2{font-family:"Anton",sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:4px}
+  .card .sub{color:var(--muted);font-size:.95rem;margin-bottom:18px}
+  .steps{margin:0 0 22px 20px;line-height:1.7;font-size:.92rem}
+  .steps li{margin-bottom:6px}
+  .steps code{background:var(--bg);padding:1px 6px;border-radius:5px;font-family:"Space Mono",monospace;font-size:.85em}
+  .steps b{color:var(--gold)}
+
+  label{display:block;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:14px 0 6px}
+  label .req{color:var(--coral);margin-left:3px}
+  input{
+    width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:12px 13px;font-family:"Space Mono",monospace;font-size:1rem;
+    text-transform:uppercase;letter-spacing:1px;
+  }
+  input:focus{outline:none;border-color:var(--coral)}
+  input:invalid:not(:placeholder-shown){border-color:var(--coral)}
+  .hint{color:var(--muted);font-size:.78rem;margin-top:4px}
+  .btn{
+    background:var(--coral);color:#2a0713;border:none;border-radius:10px;
+    padding:13px 16px;font-family:"Inter";font-weight:700;font-size:.95rem;
+    cursor:pointer;transition:.15s;width:100%;margin-top:18px;text-transform:uppercase;letter-spacing:1px;
+  }
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+
+  /* Loading state mostrado entre o load e a resolucao do Firebase Auth + RTDB. */
+  #loading-state{
+    text-align:center;padding:60px 20px;color:var(--muted);
+  }
+  #loading-state .spinner{
+    display:inline-block;width:32px;height:32px;
+    border:3px solid var(--line);border-top-color:var(--coral);
+    border-radius:50%;animation:mamometro-spin 0.8s linear infinite;
+  }
+  #loading-state p{margin-top:16px;font-size:.9rem;letter-spacing:1px;text-transform:uppercase}
+  @keyframes mamometro-spin{to{transform:rotate(360deg)}}
+
+  footer.foot{margin-top:36px;color:var(--muted);font-size:.78rem;text-align:center;letter-spacing:1px;text-transform:uppercase}
+  footer.foot a{color:var(--muted)}
+  footer.foot a:hover{color:var(--ink)}
+
+  @media (max-width:520px){
+    .card{padding:18px}
+    header.topo{align-items:flex-start}
+    .marca h1{font-size:2rem}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="topo">
+    <div class="marca">
+      <h1>MAM<span class="o">Ô</span>METRO</h1>
+      <div class="tag">Entrar no grupo</div>
+    </div>
+    <div class="topo-acoes">
+      <a class="btn-org" href="/">← Voltar ao ranking</a>
+    </div>
+  </header>
+
+  <div id="banner" hidden></div>
+
+  <!-- Loading state (F1): mostrado entre o load da pagina e a resolucao
+       do Firebase Auth + RTDB. Sem isso o form aparecia vazio por 1-3s. -->
+  <div id="loading-state">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Verificando tua conta…</p>
+  </div>
+
+  <section class="card" id="form-card" hidden>
+    <h2>Rastreamento automático de partidas</h2>
+    <p class="sub">
+      <b>Nova feature:</b> ativa o bot pra puxar e processar automaticamente todas as tuas próximas
+      partidas de CS2. Cola os 2 códigos abaixo — o <em>código de autenticação</em> é o
+      token persistente que a Steam te dá, e o <em>token da partida mais recente</em> é o
+      ponto de partida de onde o bot começa a caminhar pra trás. Depois de ativar,
+      o bot cuida dos próximos matches sozinho.
+    </p>
+
+    <form id="form" novalidate>
+      <!--
+        Campo "Identificacao na Steam" — escondido quando o user ta logado
+        (o steamId vem do auth automaticamente). Visivel so' como fallback
+        pra quem abre a URL sem ter sessao Firebase Auth.
+      -->
+      <div id="profile-url-field">
+        <label for="profileUrl">
+          Identificação na Steam
+          <span class="req" aria-hidden="true">*</span>
+        </label>
+        <input
+          id="profileUrl"
+          name="profileUrl"
+          type="text"
+          required
+          autocomplete="off"
+          spellcheck="false"
+          pattern="^(\d{17}|https?://(www\.)?steamcommunity\.com/(id|profiles)/.+\/?)$"
+          placeholder="https://steamcommunity.com/id/teunick  ou  76561198067039713"
+          aria-describedby="profileUrl-hint"
+        >
+        <div class="hint" id="profileUrl-hint">A URL completa do teu perfil Steam, ou teu SteamID64 (17 dígitos). O bot usa pra te identificar no roster.</div>
+      </div>
+
+      <label for="authCode">
+        Código de autenticação
+        <span class="req" aria-hidden="true">*</span>
+      </label>
+      <input
+        id="authCode"
+        name="authCode"
+        type="text"
+        required
+        autocomplete="off"
+        spellcheck="false"
+        pattern="^[A-Za-z0-9]{4,5}-[A-Za-z0-9]{4,5}-[A-Za-z0-9]{4,5}$"
+        placeholder="AAAA-1111-BBBB"
+        aria-describedby="authCode-hint"
+      >
+      <div class="hint" id="authCode-hint">Acesse essa página para obter: <a href="https://help.steampowered.com/pt/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener">página do CS2</a>.</div>
+
+      <label for="shareCode">
+        Token da tua partida mais recente
+        <span class="req" aria-hidden="true">*</span>
+      </label>
+      <input
+        id="shareCode"
+        name="shareCode"
+        type="text"
+        required
+        autocomplete="off"
+        spellcheck="false"
+        pattern="^CSGO-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$"
+        placeholder="CSGO-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+        aria-describedby="shareCode-hint"
+      >
+      <div class="hint" id="shareCode-hint">Acesse essa página para obter: <a href="https://help.steampowered.com/pt/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener">página do CS2</a>.</div>
+
+      <button class="btn" type="submit" id="submit-btn">Entrar no Mamômetro</button>
+    </form>
+
+    <div id="status" role="status" aria-live="polite"></div>
+  </section>
+
+  <footer class="foot">
+    <a href="/">← Voltar ao ranking</a>
+  </footer>
+</div>
+
+<script>
+  // ============== Auth state check (F1: detecta se ja onboarded) ==============
+  // Se o user ja ta logado via Firebase Auth E tem entry em roster/, mostra
+  // estado "voce ja esta no mamometro" em vez do form em branco.
+  const formSection = document.querySelector("section.card");
+  const formEl = document.getElementById("form");
+  const profileInput = document.getElementById("profileUrl");
+  const onboardedSection = document.createElement("section");
+  onboardedSection.className = "card";
+  onboardedSection.id = "onboarded-state";
+  onboardedSection.hidden = true;
+  formSection.insertAdjacentElement("afterend", onboardedSection);
+
+  function showOnboardedState(entry, steamId) {
+    const when = entry.updatedAt
+      ? new Date(entry.updatedAt).toLocaleDateString("pt-BR", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "?";
+    onboardedSection.innerHTML = `
+      <h2 style="font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:1px;font-size:1.4rem;margin-bottom:4px;color:var(--mint);">✓ Você já está no Mamômetro</h2>
+      <p class="sub" style="color:var(--muted);font-size:.95rem;margin-bottom:18px;">
+        Tua SteamID <code style="background:var(--bg);padding:1px 6px;border-radius:4px;font-family:'Space Mono',monospace;color:var(--ink);">${steamId}</code>
+        está registrada desde <b style="color:var(--ink);">${when}</b>
+        como <b style="color:var(--ink);">${escapeHtml(entry.name || "(sem nome)")}</b>.
+        O bot já acompanha teus matches automaticamente.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <a class="btn-org" href="/" style="text-decoration:none;display:inline-flex;align-items:center;">← Voltar ao ranking</a>
+        <button class="btn-org" type="button" id="re-onboard-btn" style="cursor:pointer;border:1px solid var(--line);">Re-onboardar (codes novos)</button>
+        <a class="btn-org" href="https://help.steampowered.com/pt/wizard/HelpWithGameIssue/?appid=730&issueid=128" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center;">Acessar página ↗</a>
+      </div>
+      <div class="hint" style="margin-top:14px;color:var(--muted);font-size:.78rem;">
+        Re-onboardar atualiza teu <code>authCode</code> + <code>anchorCode</code> no roster.
+        Útil se o token persistente do CS2 expirar (a Valve regenera de vez em quando).
+      </div>
+    `;
+    onboardedSection.hidden = false;
+    formSection.hidden = true;
+    document.getElementById("re-onboard-btn").addEventListener("click", () => {
+      onboardedSection.hidden = true;
+      formSection.hidden = false;
+      // pre-fill o steamId (form recebe steamId puro, nao URL)
+      if (profileInput) profileInput.value = steamId;
+      // scroll pro form
+      formSection.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
+
+  // Roda a checagem so' depois do Firebase SDK carregar
+  const loadingEl = document.getElementById("loading-state");
+  const profileUrlFieldEl = document.getElementById("profile-url-field");
+  let checkResolved = false; // idempotente: se o timeout dispara depois do check, nao atrapalha
+
+  function showForm() {
+    if (checkResolved) return;
+    checkResolved = true;
+    if (loadingEl) loadingEl.hidden = true;
+    formSection.hidden = false;
+  }
+
+  function showOnboardedWithLoadingHidden(entry, steamId) {
+    if (checkResolved) return;
+    checkResolved = true;
+    if (loadingEl) loadingEl.hidden = true;
+    showOnboardedState(entry, steamId);
+  }
+
+  // Esconde o campo "Identificacao na Steam" quando o user ta logado
+  // (o steamId vem do auth). Mantem visivel so' como fallback pra
+  // quem abriu a URL sem ter sessao.
+  function hideProfileFieldIfLoggedIn(loggedIn, steamId) {
+    if (loggedIn && profileUrlFieldEl) {
+      profileUrlFieldEl.hidden = true;
+      const input = document.getElementById("profileUrl");
+      if (input) input.removeAttribute("required");
+    }
+  }
+
+  // Fallback de seguranca: se o Firebase Auth/RTDB demorar mais que 5s
+  // (rede ruim, SDK com bug, etc), mostra o form para o user nao ficar
+  // travado no spinner. Em paralelo, o check continua rodando.
+  setTimeout(() => {
+    if (!checkResolved) {
+      console.warn("[onboard] check demorou >5s, mostrando form por fallback");
+      showForm();
+    }
+  }, 5000);
+
+  function checkOnboardState() {
+    if (!window.__fbAuth || !window.__fbDb) {
+      setTimeout(checkOnboardState, 100);
+      return;
+    }
+    window.__fbAuth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        // sem sessao: mostra o form (back-compat de quem abre a URL
+        // sem ter logado no SPA antes)
+        showForm();
+        return;
+      }
+      const email = user.email || "";
+      const steamId = email.replace(/@mamometro\.gg$/, "");
+      if (!steamId || !/^\d{17}$/.test(steamId)) {
+        showForm();
+        return;
+      }
+      // pre-fill o campo steamId (fica no DOM pro submit, mas
+      // escondido visualmente pq ja vem do auth).
+      if (profileInput) profileInput.value = steamId;
+      hideProfileFieldIfLoggedIn(true, steamId);
+      try {
+        const snap = await window.__fbDb.ref(`roster/${steamId}`).once("value");
+        const entry = snap.val();
+        if (entry && entry.status === "active") {
+          showOnboardedWithLoadingHidden(entry, steamId);
+        } else {
+          // logado mas sem entry: mostra o form (gate normal)
+          showForm();
+        }
+      } catch (e) {
+        // permission denied ou erro de rede: silencioso, mostra form
+        console.warn("[onboard] check falhou:", e);
+        showForm();
+      }
+    });
+  }
+  checkOnboardState();
+
+  // ============== Submit handler ==============
+  const form = document.getElementById("form");
+  const status = document.getElementById("status");
+  const submitBtn = document.getElementById("submit-btn");
+  const banner = document.getElementById("banner");
+
+  function setStatus(text, kind) {
+    status.textContent = text;
+    if (kind) status.dataset.kind = kind;
+    else delete status.dataset.kind;
+  }
+
+  function friendlyError(body) {
+    const code = body && body.error;
+    const msg = body && body.message;
+    switch (code) {
+      case "auth_code_invalid":
+        return "A Steam rejeitou o par de codes. Causas comuns: code colado errado, code gerado há muito tempo, ou share code não é dessa conta. Gera um novo par e tenta de novo.";
+      case "share_code_invalid":
+        return "A Steam disse que o share code não bate com essa conta. Causas comuns: share code é de outra conta, de uma partida de FACEIT (não serve — tem que ser de Valve MM), ou já foi revogado. Pega um share code novo de uma partida recente de Premier/Competitive e tenta de novo.";
+      case "profile_not_found":
+        return "Perfil da Steam não encontrado. Confere a URL/ID e tenta de novo.";
+      case "invalid_input":
+      case "invalid_profile_url":
+        return msg || "Algum campo está em formato errado. Confere o formato (AAAA-1111-BBBB e CSGO-XXXXX-...-XXXXX).";
+      case "steam_api_key_missing":
+      case "firebase_not_configured":
+      case "firebase_init_failed":
+        return "Erro de configuração do servidor. Avisa o admin.";
+      case "method_not_allowed":
+        return "Método errado. Recarrega a página e tenta de novo.";
+      default:
+        return msg || "Erro inesperado. Tenta de novo em alguns segundos.";
+    }
+  }
+
+  form.addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    setStatus("Validando com a Steam…", "pending");
+    submitBtn.disabled = true;
+    // Pega via FormData (mais robusto que .value pra campos com pattern)
+    const data = Object.fromEntries(new FormData(form));
+    // IMPORTANTE: NÃO fazer toUpperCase aqui. Steam gera share codes com mixed
+    // case (ex. "CSGO-p8QNB-TUzXw-WA8oh-6sDxR-E8V5F") e o endpoint
+    // GetNextMatchSharingCode é case-sensitive — uppercasing quebra o match e a
+    // Steam devolve 412.
+    data.authCode = (data.authCode || "").trim();
+    data.shareCode = (data.shareCode || "").trim();
+    // profileUrl: detecta se é steamId puro (17 dígitos) ou URL, e envia pro
+    // campo certo que o backend espera.
+    const raw = (data.profileUrl || "").trim();
+    delete data.profileUrl;
+    if (/^\d{17}$/.test(raw)) {
+      data.steamId = raw;
+    } else if (raw) {
+      data.profileUrl = raw;
+    }
+
+    try {
+      const r = await fetch("/api/onboard", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      let body = {};
+      try { body = await r.json(); } catch { /* tolerante a corpo não-JSON */ }
+
+      if (r.ok && body.ok) {
+        // Persiste o steamId pra próxima visita mostrar o banner "já está no roster"
+        if (body.steamId) localStorage.setItem(STORAGE_KEY, body.steamId);
+        setStatus(`Pronto! Você está no Mamômetro como ${body.name || "novo membro"}. Não precisa fazer isso de novo.`, "ok");
+        form.querySelectorAll("input").forEach((i) => { i.disabled = true; });
+        submitBtn.textContent = "Já onboardado ✓";
+        // Esconde banner (se estava visível) — estamos onboarded agora
+        banner.hidden = true;
+      } else {
+        status.innerHTML = `
+          <div style="color:var(--coral);font-weight:600;margin-bottom:8px;">❌ ${friendlyError(body)}</div>
+          <button type="button" id="ob-recheck" class="btn-org" style="margin-top:4px;">
+            Já fiz onboard antes, re-verificar status
+          </button>
+        `;
+        submitBtn.disabled = false;
+        const recheckBtn = document.getElementById("ob-recheck");
+        if (recheckBtn) {
+          recheckBtn.addEventListener("click", async () => {
+            recheckBtn.disabled = true;
+            recheckBtn.textContent = "Verificando…";
+            await checkOnboardState();
+          });
+        }
+      }
+    } catch (err) {
+      setStatus("Erro de rede. Tenta de novo em alguns segundos.", "err");
+      submitBtn.disabled = false;
+    }
+  });
+
+  // ============== "Já está no roster?" banner (localStorage) ==============
+  // Mantem pra back-compat com user que onboardou antes do RTDB check funcionar
+  // (e.g., localStorage com steamId mas DB limpo). Le do storage e checa
+  // o RTDB via /api/onboard?steamId=X (server-side, nao precisa de auth).
+  const STORAGE_KEY = "mamometro.onboarded.steamId";
+  let steamId = localStorage.getItem(STORAGE_KEY);
+  const url = new URL(window.location.href);
+  const fromQuery = url.searchParams.get("steamId");
+  if (fromQuery && /^\d{17}$/.test(fromQuery)) {
+    steamId = fromQuery;
+    localStorage.setItem(STORAGE_KEY, steamId);
+  }
+  if (steamId) {
+    banner.innerHTML = `
+      <span class="dot" aria-hidden="true"></span>
+      <div class="txt">
+        <div><b>Você já está no Mamômetro.</b> Não precisa fazer de novo.</div>
+        <div class="since">Desde ${formatSince(/* will be filled by /api/onboard check below */"")}.</div>
+      </div>
+      <a class="btn-org re" href="#form-card">Re-onboardar</a>
+    `;
+    banner.hidden = false;
+    // Pega a data via API server-side
+    fetch(`/api/onboard?steamId=${encodeURIComponent(steamId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(body => {
+        if (body && body.onboarded) {
+          const sinceEl = banner.querySelector(".since");
+          if (sinceEl) sinceEl.textContent = `Desde ${formatSince(body.since)}.`;
+        }
+      })
+      .catch(() => {});
+  }
+
+  function formatSince(iso) {
+    if (!iso) return "?";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    } catch { return iso; }
+  }
+</script>
+</body>
+</html>

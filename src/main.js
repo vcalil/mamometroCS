@@ -104,6 +104,11 @@ document.getElementById("overlay").addEventListener("click", (e) => {
 });
 
 // ---- Bootstrap ----
+// F1: estado do gate de onboard. "loading" ate' o check inicial terminar,
+// depois "onboarded" ou "not_onboarded". conta.js renderApp() le esse
+// state pra decidir o que mostrar (muro de login / gate de onboard / ranking).
+window.__mamometroOnboardState = "loading";
+
 // As regras do banco exigem login pra ler `estado` e `gsi/pending`. Se a gente
 // assinasse esses nós no carregamento da página (antes do login), o Firebase
 // negaria a leitura e CANCELARIA o listener — que não se reinscreve sozinho
@@ -112,6 +117,12 @@ if (configurado) {
   onValue(ref(db, ".info/connected"), (s) => marcarLive(!!s.val()));
 
   let desinscrever = [];
+  // Listener do gate de onboard: quando o form submete com sucesso, dispara
+  // esse event e a gente re-checa + re-renderiza (libera o gate pro ranking).
+  window.addEventListener("mamometro:onboard-done", () => {
+    conta.renderApp();
+  });
+
   aoMudarAuth((user) => {
     desinscrever.forEach((fn) => fn());
     desinscrever = [];
@@ -121,21 +132,42 @@ if (configurado) {
       aplicarSnapshot({});
       resetarCarga();
       conta.resetarOfertaVinculo();
+      window.__mamometroOnboardState = "loading"; // reseta pro próximo login
       conta.renderApp();
       return;
     }
+
+    // F1: checa se o usuario ja fez onboard. Se nao, renderApp() mostra o
+    // gate e NAO assina os dados do ranking (economiza bandwidth + força o
+    // cara a fazer onboard antes de ver o placar). Import dinamico pra nao
+    // pesar o bundle inicial.
+    window.__mamometroOnboardState = "loading";
+    conta.renderApp(); // mostra "Verificando..."
+    import("./ui/onboard.js").then((m) => m.checarOnboard()).then((s) => {
+      window.__mamometroOnboardState = s;
+      conta.renderApp();
+    });
 
     desinscrever.push(
       onValue(
         ref(db, "estado"),
         (snap) => {
+          // F1: SEMPRE carrega os dados do estado, mesmo se o user nao onboarded
+          // ainda. O gate de onboard e' so' pro form, nao pros dados — o user
+          // pode ver o ranking (com os 10 players) antes de onboardar. O gate
+          // que renderApp() desenha em cima quando state != 'onboarded'.
           aplicarSnapshot(snap.val() || {});
           marcarLive(true);
-          conta.renderApp(); // muro de login x ranking, já com os dados novos
-          // Logado sem card do histórico? Oferece o vínculo (uma vez).
-          conta.garantirVinculo();
-          // Se o painel estiver aberto, atualiza o histórico ao vivo.
-          if (document.getElementById("pn-jog")) admin.renderHistorico();
+          if (window.__mamometroOnboardState === "onboarded") {
+            conta.renderApp(); // so re-renderiza se j'a onboarded (senao o gate fica)
+            // Logado sem card do histórico? Oferece o vínculo (uma vez).
+            conta.garantirVinculo();
+            // Se o painel estiver aberto, atualiza o histórico ao vivo.
+            if (document.getElementById("pn-jog")) admin.renderHistorico();
+          } else {
+            // Nao onboarded: atualiza so o "live" indicator, gate continua
+            marcarLive(true);
+          }
         },
         () => marcarLive(false)
       )

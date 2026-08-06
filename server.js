@@ -7,10 +7,15 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { handler as steamProfile } from "./netlify/functions/steam-profile.js";
 import { handler as gsi } from "./netlify/functions/gsi.js";
+import { handler as onboard } from "./netlify/functions/onboard.js";
 
 const DIST = path.resolve("dist");
 const PORT = process.env.PORT || 8888;
 const FUNCS = { "steam-profile": steamProfile, gsi };
+// F1 Fase 3: endpoint /api/onboard (rota dedicada, espelha /.netlify/functions
+// no path). Fica aqui (e não em netlify.toml) porque o server.js é o entry
+// point único do Docker self-hosted.
+const API_ROUTES = { onboard };
 
 function lerCorpo(req) {
   return new Promise((resolve) => {
@@ -43,21 +48,52 @@ function seguro(base, alvo) {
   return resolvido.startsWith(base) ? resolvido : null;
 }
 
+async function chamarHandler(handler, req, url) {
+  const body = req.method === "POST" ? await lerCorpo(req) : undefined;
+  const result = await handler({
+    httpMethod: req.method,
+    queryStringParameters: Object.fromEntries(url.searchParams),
+    body,
+  });
+  return {
+    status: result.statusCode,
+    headers: result.headers || {},
+    body: result.body,
+  };
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
+
+  // ---- API dedicada (F1 Fase 3+) ----
+  const mApi = url.pathname.match(/^\/api\/([\w-]+)\/?$/);
+  if (mApi && API_ROUTES[mApi[1]]) {
+    try {
+      const { status, headers, body } = await chamarHandler(
+        API_ROUTES[mApi[1]],
+        req,
+        url,
+      );
+      res.writeHead(status, headers);
+      res.end(body);
+    } catch (e) {
+      res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: e.message || "Erro interno." }));
+    }
+    return;
+  }
 
   // ---- Rotas das Netlify Functions ----
   const mFunc = url.pathname.match(/^\/\.netlify\/functions\/([\w-]+)$/);
   if (mFunc && FUNCS[mFunc[1]]) {
     try {
-      const body = req.method === "POST" ? await lerCorpo(req) : undefined;
-      const result = await FUNCS[mFunc[1]]({
-        httpMethod: req.method,
-        queryStringParameters: Object.fromEntries(url.searchParams),
-        body,
-      });
-      res.writeHead(result.statusCode, result.headers || {});
-      res.end(result.body);
+      const { status, headers, body } = await chamarHandler(
+        FUNCS[mFunc[1]],
+        req,
+        url,
+      );
+      res.writeHead(status, headers);
+      res.end(body);
     } catch (e) {
       res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
       res.end(JSON.stringify({ error: e.message || "Erro interno." }));

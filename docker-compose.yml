@@ -12,8 +12,13 @@ services:
       - "8888:8888"
     env_file:
       - .env
+    volumes:
+      # F1 Fase 3: POST /api/onboard grava em roster/ via Admin SDK.
+      # Reusa o mesmo SA json do demo-parser (mesma conta Firebase).
+      - ./demo-parser/secrets/firebase-admin.json:/secrets/firebase-admin.json:ro
     environment:
       - PORT=8888
+      - FIREBASE_SA_PATH=/secrets/firebase-admin.json
     restart: unless-stopped
 
   # ---------------------------------------------------------------------
@@ -59,3 +64,26 @@ services:
       - POLL_INTERVAL_SEC=30
       - DELETE_AFTER_PROCESS=true
       - FILE_STABILITY_SEC=5
+
+  # roster-sync (./roster-sync) — F1+ watcher.
+  # Observa `roster/` no RTDB e regenera o config.json do downloader
+  # quando algo muda. NÃO reinicia o downloader — o operador roda
+  # `docker compose restart demo-downloader` após ver o log
+  # "wrote /config/config.json".
+  roster-sync:
+    build: ./roster-sync
+    container_name: roster-sync
+    restart: unless-stopped
+    volumes:
+      - ./roster-sync/secrets/firebase-admin.json:/secrets/firebase-admin.json:ro
+      - ./demo-downloader/config:/config
+    environment:
+      - TZ=America/Sao_Paulo
+      - FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
+      - FIREBASE_SA_PATH=/secrets/firebase-admin.json
+      - CONFIG_OUTPUT_PATH=/config/config.json
+      - POLL_INTERVAL_SEC=60
+      - BOT_USERNAME=${STEAM_BOT_USERNAME}
+      - BOT_PASSWORD=${STEAM_BOT_PASSWORD}
+      - BOT_SHARED_SECRET=${STEAM_BOT_SHARED_SECRET}
+      - STEAM_API_KEY=${STEAM_API_KEY}
