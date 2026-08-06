@@ -49,6 +49,12 @@ export async function checarOnboard() {
 
 export function marcarOnboarded() {
   estado = "onboarded";
+  // Tambem atualiza o state global que o conta.js renderApp() le. Sem isso,
+  // o event 'mamometro:onboard-done' dispara renderApp() mas ele ainda ve
+  // 'not_onboarded' no window state e re-renderiza o gate.
+  if (typeof window !== "undefined") {
+    window.__mamometroOnboardState = "onboarded";
+  }
 }
 
 // Submete o form de onboard. steamId vem do usuario logado (NUNCA do form).
