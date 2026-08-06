@@ -112,6 +112,19 @@
   .btn:hover{filter:brightness(1.08)}
   .btn:disabled{opacity:.5;cursor:not-allowed}
 
+  /* Loading state mostrado entre o load e a resolucao do Firebase Auth + RTDB.
+     Sem isso, o form aparece vazio por 1-3s antes do check de onboard terminar. */
+  #loading-state{
+    text-align:center;padding:60px 20px;color:var(--muted);
+  }
+  #loading-state .spinner{
+    display:inline-block;width:32px;height:32px;
+    border:3px solid var(--line);border-top-color:var(--coral);
+    border-radius:50%;animation:mamometro-spin 0.8s linear infinite;
+  }
+  #loading-state p{margin-top:16px;font-size:.9rem;letter-spacing:1px;text-transform:uppercase}
+  @keyframes mamometro-spin{to{transform:rotate(360deg)}}
+
   /* Status box */
   #status{min-height:1.2em;margin-top:16px;font-size:.95rem}
   #status[data-kind="pending"]{color:var(--muted)}
@@ -145,7 +158,14 @@
 
   <div id="banner" hidden></div>
 
-  <section class="card" id="form-card">
+  <!-- Loading state (F1): mostrado entre o load da pagina e a resolucao
+       do Firebase Auth + RTDB. Sem isso o form aparecia vazio por 1-3s. -->
+  <div id="loading-state">
+    <div class="spinner" aria-hidden="true"></div>
+    <p>Verificando tua conta…</p>
+  </div>
+
+  <section class="card" id="form-card" hidden>
     <h2>Rastreamento automático de partidas</h2>
     <p class="sub">
       <b>Nova feature:</b> ativa o bot pra puxar e processar automaticamente todas as tuas próximas
@@ -280,6 +300,33 @@
   }
 
   // Roda a checagem so' depois do Firebase SDK carregar
+  const loadingEl = document.getElementById("loading-state");
+  let checkResolved = false; // idempotente: se o timeout dispara depois do check, nao atrapalha
+
+  function showForm() {
+    if (checkResolved) return;
+    checkResolved = true;
+    if (loadingEl) loadingEl.hidden = true;
+    formSection.hidden = false;
+  }
+
+  function showOnboardedWithLoadingHidden(entry, steamId) {
+    if (checkResolved) return;
+    checkResolved = true;
+    if (loadingEl) loadingEl.hidden = true;
+    showOnboardedState(entry, steamId);
+  }
+
+  // Fallback de seguranca: se o Firebase Auth/RTDB demorar mais que 5s
+  // (rede ruim, SDK com bug, etc), mostra o form para o user nao ficar
+  // travado no spinner. Em paralelo, o check continua rodando.
+  setTimeout(() => {
+    if (!checkResolved) {
+      console.warn("[onboard] check demorou >5s, mostrando form por fallback");
+      showForm();
+    }
+  }, 5000);
+
   function checkOnboardState() {
     if (!window.__fbAuth || !window.__fbDb) {
       // SDK ainda nao carregou, tenta d'aqui a pouco
@@ -287,11 +334,17 @@
       return;
     }
     window.__fbAuth.onAuthStateChanged(async (user) => {
-      if (!user) return; // sem sessao: mostra o form normal
+      if (!user) {
+        // sem sessao: mostra o form (caso back-compat de quem abre a URL
+        // sem ter logado no SPA antes)
+        showForm();
+        return;
+      }
       const email = user.email || "";
       const steamId = email.replace(/@mamometro\.gg$/, "");
       if (!steamId || !/^\d{17}$/.test(steamId)) {
         // conta sem steamId vinculado (raro): ignora e mostra form
+        showForm();
         return;
       }
       // pre-fill o campo steamId pra conveniência
@@ -300,12 +353,15 @@
         const snap = await window.__fbDb.ref(`roster/${steamId}`).once("value");
         const entry = snap.val();
         if (entry && entry.status === "active") {
-          showOnboardedState(entry, steamId);
+          showOnboardedWithLoadingHidden(entry, steamId);
+        } else {
+          // logado mas sem entry: mostra o form (gate normal)
+          showForm();
         }
-        // se nao tiver entry, mostra o form normal (ja onboarded state escondido)
       } catch (e) {
         // permission denied ou erro de rede: silencioso, mostra form
         console.warn("[onboard] check falhou:", e);
+        showForm();
       }
     });
   }
