@@ -70,6 +70,12 @@
           ".validate": "newData.hasChildren(['steamId', 'kills', 'damage', 'ts'])"
         }
       }
+    },
+    "roster": {
+      "$steamid": {
+        ".read": "auth != null && auth.token.email.replace(\"@mamometro.gg\", \"\") === $steamid",
+        ".write": "false"
+      }
     }
   }
 }
