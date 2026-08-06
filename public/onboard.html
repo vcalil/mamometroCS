@@ -176,22 +176,29 @@
     </p>
 
     <form id="form" novalidate>
-      <label for="profileUrl">
-        Identificação na Steam
-        <span class="req" aria-hidden="true">*</span>
-      </label>
-      <input
-        id="profileUrl"
-        name="profileUrl"
-        type="text"
-        required
-        autocomplete="off"
-        spellcheck="false"
-        pattern="^(\d{17}|https?://(www\.)?steamcommunity\.com/(id|profiles)/.+\/?)$"
-        placeholder="https://steamcommunity.com/id/teunick  ou  76561198067039713"
-        aria-describedby="profileUrl-hint"
-      >
-      <div class="hint" id="profileUrl-hint">A URL completa do teu perfil Steam, ou teu SteamID64 (17 dígitos). O bot usa pra te identificar no roster.</div>
+      <!--
+        Campo "Identificacao na Steam" — escondido quando o user ta logado
+        (o steamId vem do auth automaticamente). Visivel so' como fallback
+        pra quem abre a URL sem ter sessao Firebase Auth.
+      -->
+      <div id="profile-url-field">
+        <label for="profileUrl">
+          Identificação na Steam
+          <span class="req" aria-hidden="true">*</span>
+        </label>
+        <input
+          id="profileUrl"
+          name="profileUrl"
+          type="text"
+          required
+          autocomplete="off"
+          spellcheck="false"
+          pattern="^(\d{17}|https?://(www\.)?steamcommunity\.com/(id|profiles)/.+\/?)$"
+          placeholder="https://steamcommunity.com/id/teunick  ou  76561198067039713"
+          aria-describedby="profileUrl-hint"
+        >
+        <div class="hint" id="profileUrl-hint">A URL completa do teu perfil Steam, ou teu SteamID64 (17 dígitos). O bot usa pra te identificar no roster.</div>
+      </div>
 
       <label for="authCode">
         Código de autenticação
@@ -302,6 +309,7 @@
 
   // Roda a checagem so' depois do Firebase SDK carregar
   const loadingEl = document.getElementById("loading-state");
+  const profileUrlFieldEl = document.getElementById("profile-url-field");
   let checkResolved = false; // idempotente: se o timeout dispara depois do check, nao atrapalha
 
   function showForm() {
@@ -316,6 +324,19 @@
     checkResolved = true;
     if (loadingEl) loadingEl.hidden = true;
     showOnboardedState(entry, steamId);
+  }
+
+  // Esconde o campo "Identificacao na Steam" quando o user ta logado
+  // (o steamId vem do auth). Mantem visivel so' como fallback pra
+  // quem abriu a URL sem ter sessao.
+  function hideProfileFieldIfLoggedIn(loggedIn, steamId) {
+    if (loggedIn && profileUrlFieldEl) {
+      profileUrlFieldEl.hidden = true;
+      // Como o campo esta required no HTML, removemos o required
+      // pra nao bloquear o submit do form.
+      const input = document.getElementById("profileUrl");
+      if (input) input.removeAttribute("required");
+    }
   }
 
   // Fallback de seguranca: se o Firebase Auth/RTDB demorar mais que 5s
@@ -348,8 +369,10 @@
         showForm();
         return;
       }
-      // pre-fill o campo steamId pra conveniência
+      // pre-fill o campo steamId (fica no DOM pro submit, mas
+      // escondido visualmente pq ja vem do auth).
       if (profileInput) profileInput.value = steamId;
+      hideProfileFieldIfLoggedIn(true, steamId);
       try {
         const snap = await window.__fbDb.ref(`roster/${steamId}`).once("value");
         const entry = snap.val();
