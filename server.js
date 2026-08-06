@@ -48,6 +48,25 @@ function seguro(base, alvo) {
   return resolvido.startsWith(base) ? resolvido : null;
 }
 
+// Config web do Firebase montada a partir das envs VITE_FIREBASE_* (as mesmas
+// que o Vite injeta no SPA no build). A chave web é pública por design, mas
+// não fica chumbada no código-fonte — páginas standalone (public/onboard.html)
+// recebem via este <script> injetado no serve. O `<` é escapado pra não
+// permitir quebrar o contexto do <script>.
+function firebaseConfigScript() {
+  const cfg = {
+    apiKey: process.env.VITE_FIREBASE_API_KEY,
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+    databaseURL: process.env.VITE_FIREBASE_DATABASE_URL,
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.VITE_FIREBASE_APP_ID,
+  };
+  const json = JSON.stringify(cfg).replace(/</g, "\\u003c");
+  return `<script>window.__FIREBASE_CONFIG__=${json};</script>`;
+}
+
 async function chamarHandler(handler, req, url) {
   const body = req.method === "POST" ? await lerCorpo(req) : undefined;
   const result = await handler({
@@ -107,8 +126,19 @@ const server = http.createServer(async (req, res) => {
     file = path.join(DIST, "index.html");
   }
   try {
-    const buf = await readFile(file);
     const ext = path.extname(file).toLowerCase();
+    let buf = await readFile(file);
+    // Injeta a config do Firebase nas páginas standalone que trazem o marcador
+    // (ex.: onboard.html) — a chave não fica chumbada no repo.
+    if (ext === ".html") {
+      const html = buf.toString("utf-8");
+      if (html.includes("<!--FIREBASE_CONFIG_INJECT-->")) {
+        buf = Buffer.from(
+          html.replace("<!--FIREBASE_CONFIG_INJECT-->", firebaseConfigScript()),
+          "utf-8"
+        );
+      }
+    }
     res.writeHead(200, { "content-type": MIME[ext] || "application/octet-stream" });
     res.end(buf);
   } catch {

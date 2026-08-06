@@ -111,8 +111,10 @@ async function resolverVanity(vanity, key) {
 
 async function validarCodes(steamId, authCode, shareCode, key) {
   const url = `${STEAM}/ICSGOPlayers_730/GetNextMatchSharingCode/v1?key=${key}&steamid=${steamId}&steamidkey=${encodeURIComponent(authCode)}&knowncode=${encodeURIComponent(shareCode)}`;
-  // DEBUG: log de tudo que vai pra Steam (mascarado, sem a key)
-  console.log(`[onboard] validarCodes: steamid=${steamId} authCode=${authCode} shareCode=${shareCode} urlSteam=${STEAM}/ICSGOPlayers_730/GetNextMatchSharingCode/v1?steamid=${steamId}&steamidkey=${encodeURIComponent(authCode)}&knowncode=${encodeURIComponent(shareCode)}`);
+  // Log só o steamid — o authCode e o shareCode são segredos da Steam (o
+  // authCode dá acesso ao histórico de partidas do jogador), então NUNCA
+  // vão pro log em texto puro.
+  console.log(`[onboard] validarCodes: steamid=${steamId}`);
   const r = await fetch(url);
   if (r.status === 403) {
     const e = new Error("authCode invalido ou expirado. Gera um novo no wizard da Valve.");

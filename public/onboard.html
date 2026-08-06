@@ -10,27 +10,28 @@
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <!--
   Firebase SDK (compat) — usado pra detectar sessao e checar se o user ja
-  onboarded. As config values sao publicas (Firebase Web SDK e' feito pra
-  ser embutido no browser). Esta pagina e' o backup standalone do flow
-  de onboard; o gate principal fica no SPA (mamometro.guuilp.com/).
+  onboarded. A config (chave web, publica por design) NAO fica chumbada aqui:
+  o server.js injeta window.__FIREBASE_CONFIG__ a partir das envs VITE_FIREBASE_*
+  (mesma convencao do SPA, que le import.meta.env). Assim o repo publico nao
+  carrega a chave no codigo-fonte. Marcador abaixo e' substituido no serve.
+  Esta pagina e' o backup standalone do flow de onboard; o gate principal fica
+  no SPA (mamometro.guuilp.com/).
 -->
+<!--FIREBASE_CONFIG_INJECT-->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-  if (!firebase.apps.length) {
-    firebase.initializeApp({
-      apiKey: "AIzaSyBytgfBplIS2zJmF5cleaQQ6Bqw6WS_A2k",
-      authDomain: "mamometro-ecee6.firebaseapp.com",
-      databaseURL: "https://mamometro-ecee6-default-rtdb.firebaseio.com",
-      projectId: "mamometro-ecee6",
-      storageBucket: "mamometro-ecee6.firebasestorage.app",
-      messagingSenderId: "584282763532",
-      appId: "1:584282763532:web:c27b2ad2297ee72e4b1929",
-    });
+  var __cfg = (typeof window !== "undefined" && window.__FIREBASE_CONFIG__) || null;
+  if (__cfg && __cfg.apiKey) {
+    if (!firebase.apps.length) firebase.initializeApp(__cfg);
+    window.__fbAuth = firebase.auth();
+    window.__fbDb = firebase.database();
+  } else {
+    // Sem config injetada (ex.: aberto fora do server.js) — avisa em vez de
+    // quebrar com um erro cru do Firebase.
+    console.error("[onboard] Firebase config ausente. Sirva esta pagina pelo server.js (envs VITE_FIREBASE_*).");
   }
-  window.__fbAuth = firebase.auth();
-  window.__fbDb = firebase.database();
 </script>
 <style>
   :root{
