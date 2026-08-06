@@ -217,6 +217,12 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp_name, path)
+        # F1 fix: mkstemp cria com mode 0o600 (rw only pro owner). roster-sync
+        # roda como root por padrao, entao o downloader (UID 1000/node) nao
+        # consegue ler. chmod 644 = world-readable. Bot creds no config.json
+        # continuam "owner-only write" mas sao public-readable — a protecao
+        # real e o file mode do secrets/, nao do config/.
+        os.chmod(path, 0o644)
     except Exception:
         try:
             os.unlink(tmp_name)

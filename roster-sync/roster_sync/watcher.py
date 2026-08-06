@@ -122,6 +122,27 @@ def main(argv: list[str] | None = None) -> int:
                     f"restart demo-downloader to apply",
                     file=sys.stderr,
                 )
+                # F1 fix: o demo-parser precisa de roster.json em /config/ pra
+                # saber quais players estao no grupo (filtro GROUP_MIN_MEMBERS).
+                # Sem isso, parser ve rosterSize=0 e descarta todo match.
+                # Escrevemos o mesmo roster aqui, no formato que o parser espera.
+                roster_for_parser = {
+                    "players": [
+                        {
+                            "steamId": sid,
+                            "name": (roster.get(sid) or {}).get("name", ""),
+                            "addedAt": (roster.get(sid) or {}).get("updatedAt", ""),
+                        }
+                        for sid in sorted(roster.keys())
+                    ]
+                }
+                roster_path = out_path.parent / "roster.json"
+                config_writer.atomic_write_json(roster_path, roster_for_parser)
+                print(
+                    f"[roster_sync] wrote {roster_path} "
+                    f"({len(roster_for_parser['players'])} players)",
+                    file=sys.stderr,
+                )
                 last_sig = sig
         except BaseException as exc:
             # BaseException to also catch pyo3_runtime.PanicException
