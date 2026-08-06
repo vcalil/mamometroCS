@@ -52,15 +52,41 @@ export function renderApp() {
     return;
   }
 
-  if (usuarioAtual()) {
-    if (resumo) resumo.style.display = "";
-    render(); // ranking
-  } else {
+  const user = usuarioAtual();
+  if (!user) {
     if (resumo) resumo.style.display = "none";
     // Só (re)constrói o muro se ele ainda não está na tela — assim uma
     // atualização de dados ao vivo não apaga o que a pessoa está digitando.
     if (!document.querySelector("#conteudo .gate")) renderLoginGate();
+    return;
   }
+
+  // Logado: checa se ja fez onboard. Se nao, mostra o gate de onboard e
+  // esconde o ranking. O check de roster/{steamId} e' assincrono; enquanto
+  // carrega, mostra "Verificando...".
+  const onboardState = window.__mamometroOnboardState || "loading";
+  if (onboardState === "loading") {
+    if (resumo) resumo.style.display = "none";
+    const c = document.getElementById("conteudo");
+    if (c && !document.getElementById("onboard-gate")) {
+      c.innerHTML = `<div class="vazio">Verificando se você já fez onboard…</div>`;
+    }
+    return;
+  }
+  if (onboardState === "not_onboarded") {
+    if (resumo) resumo.style.display = "none";
+    if (!document.getElementById("onboard-gate")) {
+      // lazy-load do modulo de onboard pra nao pesar o bundle inicial
+      import("./onboard.js").then((m) => {
+        const sid = steamIdDoUser(user);
+        m.renderOnboardGate(sid);
+      });
+    }
+    return;
+  }
+  // onboarded: mostra o ranking
+  if (resumo) resumo.style.display = "";
+  render();
 }
 
 // Cabeçalho: só mostra chip/Organizador quando logado (o muro cuida do login).
