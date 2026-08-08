@@ -137,6 +137,18 @@ def _process_one(path: Path, delete_after: bool, min_members: int) -> None:
         wrote = firebase.save_match(fp, match_doc)
         if wrote:
             print(f"[demo_parser] saved matches/{fp} (new)", file=sys.stderr)
+            # Ponte pro ranking: converte matches/{fp} -> estado/matches
+            # (formato do SPA com entries de mamada). Best-effort.
+            if firebase.publish_to_ranking(fp, match_doc):
+                print(
+                    f"[demo_parser] published to estado/matches (mamadas computadas)",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    f"[demo_parser] estado/matches: skip (ja publicado ou sem Firebase)",
+                    file=sys.stderr,
+                )
         else:
             print(
                 f"[demo_parser] matches/{fp} already existed (skip, idempotent)",
