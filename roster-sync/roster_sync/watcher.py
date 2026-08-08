@@ -125,22 +125,37 @@ def main(argv: list[str] | None = None) -> int:
                 # F1 fix: o demo-parser precisa de roster.json em /config/ pra
                 # saber quais players estao no grupo (filtro GROUP_MIN_MEMBERS).
                 # Sem isso, parser ve rosterSize=0 e descarta todo match.
-                # Escrevemos o mesmo roster aqui, no formato que o parser espera.
+                #
+                # MUDANCA (F1): o groupCount passa a contar TODOS do grupo
+                # (estado/players — os registrados no ranking, onboarded ou
+                # nao), nao so' os onboarded. O roster/ (onboarded) e' o
+                # "veiculo" que permite puxar a demo; o estado/players e' o
+                # grupo completo. Entao aqui escrevemos a UNIAO dos dois.
+                group = firebase.read_group()  # estado/players (todos)
+                merged: dict[str, dict[str, Any]] = {}
+                for sid, entry in roster.items():
+                    merged[sid] = entry
+                for sid, entry in group.items():
+                    if sid not in merged:
+                        merged[sid] = entry
                 roster_for_parser = {
                     "players": [
                         {
                             "steamId": sid,
-                            "name": (roster.get(sid) or {}).get("name", ""),
-                            "addedAt": (roster.get(sid) or {}).get("updatedAt", ""),
+                            "name": (merged.get(sid) or {}).get("name", "")
+                            or (merged.get(sid) or {}).get("name", ""),
+                            "addedAt": (merged.get(sid) or {}).get("updatedAt", "")
+                            or (merged.get(sid) or {}).get("addedAt", ""),
                         }
-                        for sid in sorted(roster.keys())
+                        for sid in sorted(merged.keys())
                     ]
                 }
                 roster_path = out_path.parent / "roster.json"
                 config_writer.atomic_write_json(roster_path, roster_for_parser)
                 print(
                     f"[roster_sync] wrote {roster_path} "
-                    f"({len(roster_for_parser['players'])} players)",
+                    f"({len(roster_for_parser['players'])} players; "
+                    f"{len(roster)} onboarded + {len(group)} group)",
                     file=sys.stderr,
                 )
                 last_sig = sig
