@@ -257,6 +257,23 @@ def _cmd_watch() -> int:
                     break
                 key = str(entry)
                 if key in processed:
+                    # Ja' processamos esse arquivo nesta run (mesmo filename =
+                    # mesmo match re-baixado pelo downloader — ele nao tem dedup
+                    # local). O resultado ja' esta' em matches/ (ou foi
+                    # descartado). Delete pra nao acumular disco.
+                    try:
+                        entry.unlink()
+                        print(
+                            f"[demo_parser] deleted {entry.name} "
+                            f"(re-download, ja processado)",
+                            file=sys.stderr,
+                        )
+                    except OSError as exc:
+                        print(
+                            f"[demo_parser] WARN: nao consegui deletar "
+                            f"{entry.name} (re-download): {exc}",
+                            file=sys.stderr,
+                        )
                     continue
                 try:
                     age = time.time() - entry.stat().st_mtime
@@ -311,6 +328,30 @@ def _cmd_watch() -> int:
                         print(
                             f"[demo_parser] WARN: could not quarantine "
                             f"{entry.name}: {qexc}",
+                            file=sys.stderr,
+                        )
+
+            # Cleanup do staging do downloader: /demos/temp/ acumula downloads
+            # incompletos/abandonados (o downloader move pro root ao terminar,
+            # mas se morre no meio, o .dem fica preso em temp/). Arquivos parados
+            # ha' TEMP_CLEANUP_SEC (default 1h) e nao sendo escritos -> delete.
+            temp_dir = demos_dir / "temp"
+            temp_cleanup_sec = config.temp_cleanup_sec()
+            if temp_dir.is_dir() and temp_cleanup_sec > 0:
+                now = time.time()
+                for t in temp_dir.glob("*.dem"):
+                    try:
+                        if now - t.stat().st_mtime > temp_cleanup_sec:
+                            t.unlink()
+                            print(
+                                f"[demo_parser] deleted temp/{t.name} "
+                                f"(abandonado > {temp_cleanup_sec}s)",
+                                file=sys.stderr,
+                            )
+                    except OSError as exc:
+                        print(
+                            f"[demo_parser] WARN: nao consegui deletar "
+                            f"temp/{t.name}: {exc}",
                             file=sys.stderr,
                         )
         except BaseException as exc:
