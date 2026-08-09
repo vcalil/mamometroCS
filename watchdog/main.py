@@ -73,6 +73,25 @@ def restart_container() -> bool:
         return False
 
 
+def downloader_started_at() -> float:
+    """Epoch do StartTime do container via socket-proxy. 0 se nao conseguir."""
+    url = f"{SOCKET}/containers/{CONTAINER}/json"
+    req = urllib.request.Request(url)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            import json
+            data = json.loads(resp.read())
+            started = (data.get("State") or {}).get("StartedAt", "")
+            if started:
+                from datetime import datetime, timezone
+                # Ex: "2026-08-09T20:00:00.123456789Z"
+                dt = datetime.fromisoformat(started.replace("Z", "+00:00"))
+                return dt.timestamp()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[watchdog] ERRO ao ler StartTime de {CONTAINER}: {exc}", flush=True)
+    return 0.0
+
+
 def main() -> None:
     print(
         f"[watchdog] iniciando: demos={DEMOS_DIR} socket={SOCKET} "
@@ -90,16 +109,24 @@ def main() -> None:
             else:
                 newest = newest_mtime(DEMOS_DIR)
                 age_min = float("inf") if newest == 0 else (time.time() - newest) / 60.0
-                if age_min > STALE_MIN:
+                # IMPORTANTE: so' julga "travado" se o downloader ESTA rodando
+                # ha' > STALE_MIN e NAO produziu demo nesse periodo inteiro.
+                # Se acabou de comecar (janela abriu, cron rodando) ou o ultimo
+                # demo e' recente, nao e' travamento — e' trabalho em andamento.
+                started = downloader_started_at()
+                uptime_min = float("inf") if started == 0 else (time.time() - started) / 60.0
+                if age_min > STALE_MIN and uptime_min > STALE_MIN:
                     print(
-                        f"[watchdog] sem .dem novo ha {age_min:.0f}min (> {STALE_MIN}) "
-                        f"na janela — provavel travamento. Restartando {CONTAINER}...",
+                        f"[watchdog] travado: downloader up ha {uptime_min:.0f}min, "
+                        f"sem .dem novo ha {age_min:.0f}min (> {STALE_MIN}). "
+                        f"Restartando {CONTAINER}...",
                         flush=True,
                     )
                     restart_container()
                 else:
                     print(
-                        f"[watchdog] ok: ultimo .dem ha {age_min:.0f}min",
+                        f"[watchdog] ok: ultimo .dem ha {age_min:.0f}min, "
+                        f"downloader up ha {uptime_min:.0f}min",
                         flush=True,
                     )
         except Exception as exc:  # noqa: BLE001 — watchdog nunca deve morrer
