@@ -27,9 +27,14 @@ usuário comum. O SteamID sai do e-mail sintético do login
 | `submissoes` | qualquer conta cria; organizador/master aprova | fila de partidas da galera |
 | `propostas` | qualquer conta cria; ver abaixo | votação |
 | `gsi/*` | aberto | o CS2 não faz login (ver "GSI") |
+| `roster/{steamid}` | ninguém pelo cliente (`write:false`) — só o Admin SDK via `/api/onboard` | o onboard grava o `authCode` (segredo); leitura **só do próprio dono** |
+| `matches/{fp}` · `pipeline/status/` | só o Admin SDK (serviços Python na VPS) | pipeline de demos; o cliente nem lê (raiz negada) |
 
 Ler qualquer coisa exige conta. A raiz é negada por padrão, então nenhum
-caminho novo nasce aberto por acidente.
+caminho novo nasce aberto por acidente. Os nós do pipeline (`matches/`,
+`pipeline/status/`) são escritos pelo **Admin SDK**, que ignora estas regras;
+por isso não precisam de `.write` aqui — mas o `roster/` precisa, pra travar a
+leitura ao dono. Forma dos dados: ver [`SCHEMA-RTDB.md`](SCHEMA-RTDB.md).
 
 ## Voto: permissão por campo, não por nó
 

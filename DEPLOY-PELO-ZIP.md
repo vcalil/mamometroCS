@@ -1,64 +1,68 @@
-# Deploy do Mamômetro CS (a partir deste .zip)
+# Deploy do Mamômetro CS (self-hosted / Docker)
 
-Você recebeu o projeto **já configurado** (o arquivo `.env` com a config do
-Firebase e a chave da Steam já vem junto). Só falta publicar no Netlify.
+Você recebeu o projeto **já configurado** (o `.env` com a config do Firebase e a
+chave da Steam vem junto). O deploy é **self-hosted em Docker** (a infra do
+guuilp) — o Netlify foi descontinuado.
 
-> Precisa ter o **Node 20+** instalado (https://nodejs.org).
+> Precisa de **Docker** + **Docker Compose** na máquina/VPS.
 
-## Passos (Netlify CLI — inclui as funções)
+## Subir o site
 
-Abra um terminal na pasta do projeto (onde está o `package.json`) e rode:
-
-```bash
-npm install                              # baixa as dependências
-npx netlify login                        # abre o navegador pra logar no Netlify
-npx netlify deploy --build --prod        # builda e sobe o site + funções
-#   → escolha "Create & configure a new site" e dê um nome
-```
-
-Agora suba as variáveis das **funções** (chave da Steam etc.) e faça o deploy de
-novo pra elas valerem:
+Na pasta do projeto (onde está o `docker-compose.yml`):
 
 ```bash
-npx netlify env:import .env              # manda as variáveis do .env pro Netlify
-npx netlify deploy --build --prod        # redeploy pra as funções pegarem as chaves
+docker compose up --build -d mamometro   # builda e sobe o site (server.js) na :8888
 ```
 
-## Último passo (login)
+O `server.js` serve o SPA (`dist/`) e as funções em **`/api/steam-profile`**,
+**`/api/gsi`**, **`/api/onboard`** (o path legado `/.netlify/functions/*` ainda
+responde, pra `.cfg` de GSI antigos). Coloque um proxy (Traefik/Nginx) na frente
+pro domínio + HTTPS.
 
-No console do Firebase (https://console.firebase.google.com), no projeto cuja
-config está no `.env` (veja `VITE_FIREBASE_PROJECT_ID`):
+## Pipeline de demos (bot) — serviços opcionais
 
-> Authentication → **Sign-in method** → habilite **Email/Senha**.
+```bash
+docker compose up --build -d demo-downloader demo-parser roster-sync
+```
 
-Sem isso, ninguém consegue criar senha / entrar.
+Precisa do service-account do Firebase em `demo-parser/secrets/firebase-admin.json`
+(e `roster-sync/secrets/...`) e das `STEAM_BOT_*` no `.env`. Ver `README.md`.
 
-## Mais dois passos no Firebase (pegadinhas comuns)
+## Firebase (uma vez, no console)
 
-1. **Autorizar o domínio.** Authentication -> Settings -> Dominios autorizados
-   -> adicione o dominio do site (ex.: `seu-site.netlify.app`, sem https://).
-   Sem isso o login funciona em localhost e falha em producao.
+No projeto do `.env` (`VITE_FIREBASE_PROJECT_ID`):
 
-2. **Fechar as regras do banco.** Realtime Database -> Regras -> cole o
-   conteudo de `firebase-rules.json` -> Publicar. O "modo de teste" deixa o
-   banco aberto pra internet inteira E expira numa data fixa, derrubando o
-   site sem aviso quando vence.
+1. **Login:** Authentication → Sign-in method → habilite **Email/Senha**.
+2. **Domínio:** Authentication → Settings → Domínios autorizados → adicione o
+   domínio do site (sem `https://`). Sem isso o login falha em produção.
+3. **Regras:** Realtime Database → Regras → cole `firebase-rules.json` → Publicar.
+   (O "modo de teste" abre o banco pra internet e expira sozinho.)
 
-## Pronto!
+## Verificar
 
-Abra a URL que o Netlify mostrou. Teste:
-- **Como funciona** (topo) → guia.
-- **Entrar → Cadastrar** com seu perfil da Steam + senha.
-- Os organizadores (Vini e Iago) ganham o botão **Organizador**.
+- Abra o domínio: **Entrar** com a Steam → cai no **gate de onboarding** (cola os
+  2 códigos do CS2). Depois vê o ranking.
+- `/api/steam-profile?input=...` e `/api/onboard` respondem JSON.
 
 ---
 
-### Observações
-- A config do Firebase é pública por natureza (vai pro navegador de qualquer
-  jeito) — por isso pode vir no `.env`. A **chave da Steam** é o segredo de
-  verdade; ela fica só no `.env` (que você não deve subir pra nenhum lugar
-  público) e nas variáveis do Netlify.
-- O `.cfg` do GSI (kills/dano automático) é gerado no próprio painel, já com a
-  URL do site publicado. Veja o `README.md` pra detalhes.
-- Rodar local antes de publicar (opcional): `docker compose up --build` e abra
-  http://localhost:8888.
+## ⚠️ Pendências de validação (guuilp) — refactor de padronização
+
+Duas coisas do refactor Python (Fase 3) **precisam ser validadas na VPS** — o lado
+Python foi validado local, mas não dá pra buildar/rodar Docker fora da infra:
+
+1. **`docker compose build`** dos serviços `demo-parser` e `roster-sync`: o build
+   `context` virou a **raiz do repo** (pra a imagem incluir o pacote compartilhado
+   `mm_common/`). Confirmar que as 3 imagens buildam e sobem (`python -m demo_parser`
+   / `python -m roster_sync`).
+2. **`watchdog`**: o código está pronto (Dockerfile com `mm_common`, usa `env_int`),
+   mas **não foi wirado no `docker-compose.yml`** — falta um serviço
+   `docker-socket-proxy` (acesso ao socket do Docker é decisão de infra). Wirar
+   quando for ativar.
+
+## Observações
+
+- A config do Firebase é pública (vai pro navegador) — por isso vem no `.env` e é
+  injetada no build via `%VITE_FIREBASE_*%`. A **chave da Steam** é o segredo real:
+  fica só no `.env` (não suba pra lugar público) e nas envs dos containers.
+- O `.cfg` do GSI é gerado no painel, já com a URL `.../api/gsi`.

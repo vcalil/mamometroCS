@@ -43,16 +43,22 @@ todo mundo, sem recarregar.
 ## 🏗 Arquitetura
 
 ```
-navegador (Vite, JS puro)
-   │
-   ├── Firebase Auth ......... login (e-mail sintético <steamid>@mamometro.gg)
-   ├── Realtime Database ..... estado, papéis, submissões, propostas, seasons
-   ├── api.leetify.com ....... conferência de kills (CORS liberado)
-   │
-   └── Netlify Functions
-        ├── steam-profile ..... resolve perfil da Steam (a key fica no servidor)
-        └── gsi ............... recebe o Game State Integration do CS2
+navegador (Vite, JS puro)                    VPS (Docker) — pipeline do bot
+   │                                            │
+   ├── Firebase Auth .... login sintético       ├── demo-downloader .. baixa .dem via authCodes
+   ├── Realtime DB ...... estado/roster/matches ├── demo-parser ...... parse → filtro → matches/ +
+   ├── api.leetify.com .. conferência de kills  │                      estado/matches (ranking)
+   │                                            ├── roster-sync ...... roster/ ∪ estado/players →
+   └── server.js (self-hosted, /api/*)          │                      config do downloader
+        ├── steam-profile . resolve perfil Steam └── watchdog ......... reinicia downloader travado
+        ├── gsi ........... Game State Integration do CS2
+        └── onboard ....... valida códigos da Steam → grava roster/
 ```
+
+O `server.js` (Docker) é o **único caminho de deploy** (Netlify foi descontinuado).
+As funções são servidas em `/api/*`, com `/.netlify/functions/*` como alias legado.
+O bot roda em serviços Python separados na VPS (código compartilhado em `mm_common/`).
+Modelo de dados em [`SCHEMA-RTDB.md`](SCHEMA-RTDB.md).
 
 Sem framework de front-end: JavaScript modular com `onclick` inline apontando
 para funções expostas em `window` (ver `src/main.js`). A escolha foi manter o
@@ -252,18 +258,19 @@ A config do Firebase é pública por natureza (vai para o navegador de qualquer
 forma) — a proteção real são as regras do banco. A chave da Steam é o segredo de
 verdade.
 
-### 4. Deploy no Netlify
+### 4. Deploy (self-hosted / Docker)
 
 ```bash
-npm install
-npx netlify login
-npx netlify sites:create --name seu-site
-npx netlify env:import .env          # ANTES do build
-npx netlify deploy --build --prod
+docker compose up --build -d mamometro   # site (server.js) na :8888
+# pipeline do bot (opcional): docker compose up --build -d demo-downloader demo-parser roster-sync
 ```
 
-> Importe as variáveis antes do primeiro build: as `VITE_*` são embutidas em
-> tempo de compilação, e sem elas o site nasce sem configuração.
+Coloque um proxy (Traefik/Nginx) na frente pro domínio + HTTPS. Passo a passo
+completo (Firebase, secrets, pendências de validação) em
+[`DEPLOY-PELO-ZIP.md`](DEPLOY-PELO-ZIP.md).
+
+> As `VITE_*` são embutidas no **build** (inclusive a config injetada no
+> `onboard.html` via `%VITE_FIREBASE_*%`); rebuilde a imagem quando mudarem.
 
 ### 5. Fechar o banco
 

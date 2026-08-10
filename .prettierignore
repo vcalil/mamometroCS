@@ -1,0 +1,6 @@
+node_modules
+dist
+.netlify
+src/vendor
+package-lock.json
+*.md

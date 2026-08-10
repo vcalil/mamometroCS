@@ -1,0 +1,11 @@
+# Lint/format dos serviços Python (demo-parser, roster-sync, watchdog, mm_common).
+# Rodar:  ruff check .    e    ruff format .
+line-length = 100
+target-version = "py312"
+
+[lint]
+# Defaults do ruff (E/F/W) + imports (I). Simples de propósito.
+select = ["E", "F", "W", "I"]
+
+[format]
+quote-style = "double"
