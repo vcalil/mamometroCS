@@ -1,3 +1,2 @@
 demoparser2>=0.2.0
 firebase-admin>=6.4.0
-pytest>=7.0

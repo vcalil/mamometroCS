@@ -13,3 +13,7 @@ match730_*.json
 demo-downloader/config/
 .mm-creds
 estado-antes-*.json
+
+# Python bytecode (mm_common, conftest)
+__pycache__/
+*.pyc

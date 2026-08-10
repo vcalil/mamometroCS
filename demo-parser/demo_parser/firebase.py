@@ -1,46 +1,14 @@
-"""Lazy Firebase Admin SDK wrapper.
-
-Only initializes when both FIREBASE_SA_PATH and FIREBASE_DATABASE_URL are set
-and the service account file exists. This keeps the dry-run path
-(`python -m demo_parser --demo`) usable without any cloud credentials.
+"""Helpers de nó do Firebase pro demo-parser (matches/, estado/matches,
+pipeline/status). O init lazy do Admin SDK (antes duplicado byte-a-byte com o
+roster-sync) e o normalizador de nó são compartilhados via mm_common.firebase.
 """
 
 from __future__ import annotations
 
-import os
 import sys
 from typing import Any
 
-import firebase_admin
-from firebase_admin import credentials, db
-
-_app: firebase_admin.App | None = None
-_root = None  # type: ignore[var-annotated]
-
-
-def _init() -> Any:
-    """One-time Admin SDK init. Returns the root reference or None."""
-    global _app, _root
-
-    if _root is not None:
-        return _root
-
-    sa = os.environ.get("FIREBASE_SA_PATH")
-    url = os.environ.get("FIREBASE_DATABASE_URL")
-    if not sa or not url:
-        return None
-    if not os.path.exists(sa):
-        raise RuntimeError(f"FIREBASE_SA_PATH does not exist: {sa}")
-
-    cred = credentials.Certificate(sa)
-    _app = firebase_admin.initialize_app(cred, {"databaseURL": url})
-    _root = db.reference("/")
-    return _root
-
-
-def ensure_db() -> Any:
-    """Return the Admin SDK root reference, or None if Firebase isn't configured."""
-    return _init()
+from mm_common.firebase import ensure_db  # re-init lazy compartilhado
 
 
 def save_match(fingerprint_id: str, match: dict[str, Any]) -> bool:
@@ -50,7 +18,7 @@ def save_match(fingerprint_id: str, match: dict[str, Any]) -> bool:
         True  if a new record was written
         False if a record with the same id was already there (idempotent skip)
     """
-    root = _init()
+    root = ensure_db()
     if root is None:
         raise RuntimeError(
             "Firebase not configured. Set FIREBASE_SA_PATH and FIREBASE_DATABASE_URL."
@@ -74,7 +42,7 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
     Idempotente: se `estado/matches` ja tem um entry com esse fingerprint_id,
     nao duplica. Best-effort: loga e retorna False se Firebase nao configurado.
     """
-    root = _init()
+    root = ensure_db()
     if root is None:
         return False
     try:
@@ -136,7 +104,7 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
 
 def update_status(partial: dict[str, Any]) -> bool:
     """Merge `partial` into `pipeline/status`. Best-effort: silent if no Firebase."""
-    root = _init()
+    root = ensure_db()
     if root is None:
         return False
     root.child("pipeline/status").update(partial)
@@ -150,7 +118,7 @@ def increment_discarded_filter(steam_id: str, n: int = 1) -> bool:
     the group-match filter (plano v5 §6). Best-effort: logs and returns
     False if no Firebase is configured or the transaction fails.
     """
-    root = _init()
+    root = ensure_db()
     if root is None:
         return False
     try:

@@ -47,7 +47,10 @@ services:
   # retention precisa escrever (unlink); FILE_STABILITY_SEC mitiga race
   # com o downloader.
   demo-parser:
-    build: ./demo-parser
+    # Context = raiz do repo pra a imagem incluir o pacote compartilhado mm_common/.
+    build:
+      context: .
+      dockerfile: demo-parser/Dockerfile
     container_name: demo-parser
     restart: unless-stopped
     volumes:
@@ -71,7 +74,10 @@ services:
   # `docker compose restart demo-downloader` após ver o log
   # "wrote /config/config.json".
   roster-sync:
-    build: ./roster-sync
+    # Context = raiz do repo pra a imagem incluir o pacote compartilhado mm_common/.
+    build:
+      context: .
+      dockerfile: roster-sync/Dockerfile
     container_name: roster-sync
     restart: unless-stopped
     volumes:

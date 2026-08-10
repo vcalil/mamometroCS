@@ -29,11 +29,13 @@ import urllib.error
 from datetime import datetime
 from pathlib import Path
 
+from mm_common.config import env_int
+
 DEMOS_DIR = Path(os.environ.get("DEMOS_DIR", "/demos"))
 SOCKET = os.environ.get("DOCKER_SOCKET", "http://docker-socket-proxy:2375")
 CONTAINER = os.environ.get("CONTAINER_NAME", "mamometro-downloader")
-CHECK_SEC = int(os.environ.get("CHECK_SEC", "600"))      # loop a cada 10 min
-STALE_MIN = int(os.environ.get("STALE_MIN", "45"))        # sem demo novo = travado
+CHECK_SEC = env_int("CHECK_SEC", 600, minimum=1)          # loop a cada 10 min
+STALE_MIN = env_int("STALE_MIN", 45, minimum=1)           # sem demo novo = travado
 WINDOW = os.environ.get("CRON_WINDOW", "17-23")           # janela local (hora)
 TZ = os.environ.get("TZ", "America/Sao_Paulo")
 
