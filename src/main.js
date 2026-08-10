@@ -7,6 +7,7 @@ import { mostrarSetup } from "./ui/setup.js";
 import * as admin from "./ui/admin.js";
 import * as conta from "./ui/conta.js";
 import { abrirAjuda } from "./ui/ajuda.js";
+import { abrirHistorico } from "./ui/historico.js";
 import { setPendentes } from "./gsi-client.js";
 import { setSubmissoes } from "./submissoes.js";
 import { setPropostas } from "./propostas.js";
@@ -29,6 +30,7 @@ Object.assign(window, {
   trocarVisao,
   trocarSeason,
   abrirAjuda,
+  abrirHistorico,
   abrirAdmin: admin.abrirAdmin,
   fecharOverlay: admin.fecharOverlay,
   trocarTab: admin.trocarTab,

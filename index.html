@@ -32,9 +32,13 @@
       </header>
 
       <div class="resumo">
-        <div class="stat">
+        <div
+          class="stat stat-click"
+          onclick="abrirHistorico()"
+          title="Ver o histórico das partidas"
+        >
           <div class="n" id="st-partidas">0</div>
-          <div class="l">Partidas</div>
+          <div class="l">Partidas <span class="ver">ver histórico ›</span></div>
         </div>
         <div class="stat">
           <div class="n" id="st-mamadas">0</div>
@@ -45,6 +49,8 @@
           <div class="l">Na disputa</div>
         </div>
       </div>
+
+      <div class="destaques" id="destaques"></div>
 
       <div id="conteudo"><div class="vazio">Carregando o placar...</div></div>
     </div>

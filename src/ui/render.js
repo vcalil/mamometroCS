@@ -1,5 +1,12 @@
-import { dados, nomeDe, escapar, nomeApelidoHtml, rankBadgeHtml } from "../state.js";
-import { estatisticas, taxaMamada } from "../stats.js";
+import {
+  dados,
+  nomeDe,
+  escapar,
+  nomeApelidoHtml,
+  rankBadgeHtml,
+  avatarDe,
+} from "../state.js";
+import { estatisticas, taxaMamada, destaquesSemana, foragido } from "../stats.js";
 import { configurado } from "../firebase.js";
 import { listaSeasons, seasonAtual } from "../seasons.js";
 import { avImg } from "./overlay.js";
@@ -53,6 +60,7 @@ export function render() {
   document.getElementById("st-partidas").textContent = est.nPartidas;
   document.getElementById("st-mamadas").textContent = totalMamadas;
   document.getElementById("st-jogadores").textContent = dados.players.length;
+  renderDestaques();
   const alvo = document.getElementById("conteudo");
 
   if (dados.players.length === 0) {
@@ -197,4 +205,48 @@ export function render() {
 
 export function toggleLinha(el) {
   el.parentElement.classList.toggle("aberta");
+}
+
+// Um card de destaque (avatar + rótulo + valor) ou o estado vazio.
+function cardDestaque(classe, rotulo, id, valor, vazio) {
+  if (!id) {
+    return `<div class="destaque ${classe}"><div class="d-rot">${rotulo}</div><div class="d-vazio">${vazio}</div></div>`;
+  }
+  return `<div class="destaque ${classe}">
+      <div class="d-rot">${rotulo}</div>
+      <div class="d-corpo">${avImg(avatarDe(id), "d-av")}<div class="d-info"><div class="d-nome">${nomeApelidoHtml(
+        id
+      )}</div><div class="d-val">${valor}</div></div></div>
+    </div>`;
+}
+
+// Fileira de 3 destaques: mamou mais / botou pra mamar (foi mamado) na semana +
+// o foragido (mais tempo sem jogar). Semana e foragido independem da season.
+function renderDestaques() {
+  const el = document.getElementById("destaques");
+  if (!el) return;
+  const { topMamou, topMamado } = destaquesSemana();
+  const forg = foragido();
+  el.innerHTML =
+    cardDestaque(
+      "d-mamou",
+      "🍼 Mamou mais na semana",
+      topMamou && topMamou.id,
+      topMamou ? `${topMamou.total} mamada(s)` : "",
+      "Ninguém mamou essa semana ainda"
+    ) +
+    cardDestaque(
+      "d-mamado",
+      "🎯 Botou pra mamar na semana",
+      topMamado && topMamado.id,
+      topMamado ? `${topMamado.total} recebida(s)` : "",
+      "Ninguém foi mamado essa semana"
+    ) +
+    cardDestaque(
+      "d-foragido",
+      "🕵 Foragido",
+      forg && forg.id,
+      forg ? `${forg.diasSemJogar} dia(s) sem jogar` : "",
+      "Todo mundo jogou recentemente"
+    );
 }

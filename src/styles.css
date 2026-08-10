@@ -1445,3 +1445,139 @@ select:focus {
   white-space: nowrap;
   vertical-align: middle;
 }
+
+/* ---- Card "Partidas" clicável (abre o histórico) ---- */
+.stat-click {
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+.stat-click:hover {
+  border-color: var(--coral);
+  background: var(--panel2);
+}
+.stat .ver {
+  display: block;
+  color: var(--coral);
+  font-size: 0.64rem;
+  letter-spacing: 0.5px;
+  margin-top: 3px;
+  text-transform: none;
+}
+
+/* ---- Cards de destaque (mamou/foi mamado na semana + foragido) ---- */
+.destaques {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 26px;
+}
+.destaque {
+  flex: 1;
+  min-width: 190px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.d-rot {
+  color: var(--muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 10px;
+}
+.d-corpo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.d-av {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+  border: 1px solid var(--line);
+}
+.d-info {
+  min-width: 0;
+}
+.d-nome {
+  font-weight: 600;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.d-val {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-top: 1px;
+  font-family: "Space Mono", monospace;
+}
+.d-vazio {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---- Histórico de partidas (modal) ---- */
+.hist-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+.hist-partida {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.hist-cab {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 0.78rem;
+}
+.hc-data {
+  font-family: "Space Mono", monospace;
+  color: var(--ink);
+  font-weight: 700;
+}
+.hc-mapa {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.hist-jog {
+  display: grid;
+  grid-template-columns: 1fr auto 20px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.88rem;
+}
+.hj-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hj-num {
+  color: var(--muted);
+  font-family: "Space Mono", monospace;
+  font-size: 0.8rem;
+}
+.hj-selo {
+  text-align: center;
+}
+.hist-jog.bateu .hj-selo {
+  color: var(--mint);
+}
+.hist-jog.mamou .hj-selo {
+  color: var(--coral);
+}
