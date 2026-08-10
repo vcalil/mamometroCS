@@ -1,0 +1,17 @@
+# Pytest configuration.
+#
+# Por que este arquivo existe:
+# - `pythonpath` adiciona `demo-parser` e `roster-sync` ao sys.path para
+#   que os pacotes `demo_parser` e `roster_sync` sejam importáveis nos
+#   testes. O `mm_common` (na raiz) é adicionado pelo `conftest.py`.
+# - `testpaths` aponta para os dois diretórios de teste. O de `roster-sync`
+#   foi renomeado para `tests_roster/` (originalmente `tests/`) pra evitar
+#   a colisão de pacotes homônimos `tests/` com `demo-parser/tests/` —
+#   pytest não suporta `importmode` como opção ini em 9.x, e a renomeação
+#   é a solução mínima e robusta.
+#
+# Rodar com: `pytest` a partir da raiz do repo.
+
+[tool.pytest.ini_options]
+pythonpath = ["demo-parser", "roster-sync"]
+testpaths = ["demo-parser/tests", "roster-sync/tests_roster"]
