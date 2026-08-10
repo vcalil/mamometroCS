@@ -1,12 +1,19 @@
 import { defineConfig } from "vite";
 
-// Projeto na raiz: index.html é a entrada. Build sai em dist/.
-// public/onboard.html é copiado as-is pelo Vite pra dist/ — é a página ATIVA de
-// onboarding self-serve (o server.js injeta a config do Firebase nela ao servir).
+// Duas entradas: index.html (SPA) e onboard.html (página self-serve de onboarding).
+// Ambas são bundladas pelo Vite — o onboard.html importa os módulos compartilhados
+// (onboard-core/onboard-guide) e recebe a config do Firebase via %VITE_FIREBASE_*%
+// no build (mesma fonte do SPA; não precisa mais de injeção no server.js).
 export default defineConfig({
   root: ".",
   build: {
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        onboard: "onboard.html",
+      },
+    },
   },
 });

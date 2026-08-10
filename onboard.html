@@ -9,29 +9,29 @@
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <!--
-  Firebase SDK (compat) — usado pra detectar sessao e checar se o user ja
-  onboarded. A config (chave web, publica por design) NAO fica chumbada aqui:
-  o server.js injeta window.__FIREBASE_CONFIG__ a partir das envs VITE_FIREBASE_*
-  (mesma convencao do SPA, que le import.meta.env). Assim o repo publico nao
-  carrega a chave no codigo-fonte. Marcador abaixo e' substituido no serve.
-  Esta pagina e' o backup standalone do flow de onboard; o gate principal fica
-  no SPA (mamometro.guuilp.com/).
+  Firebase SDK (compat) — usado pra detectar sessão e checar se o user já
+  onboardou. A config (chave web, pública por design) NÃO fica chumbada aqui:
+  o Vite injeta as chaves VITE_FIREBASE_ no build (mesma fonte do SPA), então o
+  repo público não carrega a chave no código-fonte.
+  Esta página é o flow standalone de onboard; o gate principal fica no SPA.
 -->
-<!--FIREBASE_CONFIG_INJECT-->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script>
-  var __cfg = (typeof window !== "undefined" && window.__FIREBASE_CONFIG__) || null;
-  if (__cfg && __cfg.apiKey) {
-    if (!firebase.apps.length) firebase.initializeApp(__cfg);
-    window.__fbAuth = firebase.auth();
-    window.__fbDb = firebase.database();
-  } else {
-    // Sem config injetada (ex.: aberto fora do server.js) — avisa em vez de
-    // quebrar com um erro cru do Firebase.
-    console.error("[onboard] Firebase config ausente. Sirva esta pagina pelo server.js (envs VITE_FIREBASE_*).");
+  if (!firebase.apps.length) {
+    firebase.initializeApp({
+      apiKey: "%VITE_FIREBASE_API_KEY%",
+      authDomain: "%VITE_FIREBASE_AUTH_DOMAIN%",
+      databaseURL: "%VITE_FIREBASE_DATABASE_URL%",
+      projectId: "%VITE_FIREBASE_PROJECT_ID%",
+      storageBucket: "%VITE_FIREBASE_STORAGE_BUCKET%",
+      messagingSenderId: "%VITE_FIREBASE_MESSAGING_SENDER_ID%",
+      appId: "%VITE_FIREBASE_APP_ID%",
+    });
   }
+  window.__fbAuth = firebase.auth();
+  window.__fbDb = firebase.database();
 </script>
 <style>
   :root{
@@ -264,7 +264,9 @@
   </footer>
 </div>
 
-<script>
+<script type="module">
+  import { traduzErro, escapeHtml } from "./src/ui/onboard-core.js";
+
   // ============== Auth state check (F1: detecta se ja onboarded) ==============
   // Se o user ja ta logado via Firebase Auth E tem entry em roster/, mostra
   // estado "voce ja esta no mamometro" em vez do form em branco.
@@ -315,15 +317,6 @@
       // scroll pro form
       formSection.scrollIntoView({ behavior: "smooth", block: "start" });
     });
-  }
-
-  function escapeHtml(s) {
-    return String(s || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
   }
 
   // Roda a checagem so' depois do Firebase SDK carregar
@@ -418,30 +411,6 @@
     else delete status.dataset.kind;
   }
 
-  function friendlyError(body) {
-    const code = body && body.error;
-    const msg = body && body.message;
-    switch (code) {
-      case "auth_code_invalid":
-        return "A Steam rejeitou o par de codes. Causas comuns: code colado errado, code gerado há muito tempo, ou share code não é dessa conta. Gera um novo par e tenta de novo.";
-      case "share_code_invalid":
-        return "A Steam disse que o share code não bate com essa conta. Causas comuns: share code é de outra conta, de uma partida de FACEIT (não serve — tem que ser de Valve MM), ou já foi revogado. Pega um share code novo de uma partida recente de Premier/Competitive e tenta de novo.";
-      case "profile_not_found":
-        return "Perfil da Steam não encontrado. Confere a URL/ID e tenta de novo.";
-      case "invalid_input":
-      case "invalid_profile_url":
-        return msg || "Algum campo está em formato errado. Confere o formato (AAAA-1111-BBBB e CSGO-XXXXX-...-XXXXX).";
-      case "steam_api_key_missing":
-      case "firebase_not_configured":
-      case "firebase_init_failed":
-        return "Erro de configuração do servidor. Avisa o admin.";
-      case "method_not_allowed":
-        return "Método errado. Recarrega a página e tenta de novo.";
-      default:
-        return msg || "Erro inesperado. Tenta de novo em alguns segundos.";
-    }
-  }
-
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
     setStatus("Validando com a Steam…", "pending");
@@ -483,7 +452,7 @@
         banner.hidden = true;
       } else {
         status.innerHTML = `
-          <div style="color:var(--coral);font-weight:600;margin-bottom:8px;">❌ ${friendlyError(body)}</div>
+          <div style="color:var(--coral);font-weight:600;margin-bottom:8px;">❌ ${traduzErro(body)}</div>
           <button type="button" id="ob-recheck" class="btn-org" style="margin-top:4px;">
             Já fiz onboard antes, re-verificar status
           </button>

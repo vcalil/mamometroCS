@@ -12,6 +12,7 @@ import { db } from "../firebase.js";
 import { steamIdDoUser } from "../auth.js";
 import { usuarioAtual } from "../auth.js";
 import { guiaOnboardHtml } from "./onboard-guide.js";
+import { escapeHtml, postOnboard } from "./onboard-core.js";
 
 // Estado do gate (controlado por conta.js e pelo submit bem-sucedido).
 // "loading"     = check em andamento
@@ -85,51 +86,9 @@ export async function submeterOnboard(authCode, shareCode) {
   const steamId = steamIdDoUser(user);
   if (!steamId) throw new Error("Conta sem steamId vinculado. Recarrega e tenta de novo.");
 
-  let r;
-  try {
-    r = await fetch("/api/onboard", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        steamId, // derivado do auth, nao confia em input
-        authCode: (authCode || "").trim(),
-        shareCode: (shareCode || "").trim(),
-      }),
-    });
-  } catch (e) {
-    throw new Error("Erro de rede. Verifica tua conexao e tenta de novo.");
-  }
-  let body = {};
-  try {
-    body = await r.json();
-  } catch {}
-  if (!r.ok || !body.ok) {
-    throw new Error(traduzErro(body));
-  }
+  const body = await postOnboard({ steamId, authCode, shareCode });
   marcarOnboarded();
   return body;
-}
-
-function traduzErro(body) {
-  const code = body && body.error;
-  const msg = body && body.message;
-  switch (code) {
-    case "auth_code_invalid":
-      return "A Steam rejeitou o par de codes. Causas comuns: code colado errado, code gerado há muito tempo, ou share code não é dessa conta. Gera um novo par e tenta de novo.";
-    case "share_code_invalid":
-      return "A Steam disse que o share code não bate com essa conta. Causas comuns: share code é de outra conta, de uma partida de FACEIT (não serve — tem que ser de Valve MM), ou já foi revogado. Pega um share code novo de uma partida recente de Premier/Competitive e tenta de novo.";
-    case "profile_not_found":
-      return "Conta Steam não encontrada. Confere e tenta de novo.";
-    case "invalid_input":
-    case "invalid_profile_url":
-      return msg || "Algum campo está em formato errado. Confere o formato (AAAA-1111-BBBB e CSGO-XXXXX-...-XXXXX).";
-    case "steam_api_key_missing":
-    case "firebase_not_configured":
-    case "firebase_init_failed":
-      return "Erro de configuração do servidor. Avisa o admin.";
-    default:
-      return msg || "Erro inesperado. Tenta de novo em alguns segundos.";
-  }
 }
 
 // Render do gate — chamado por conta.js. Substitui o conteúdo principal
@@ -242,11 +201,3 @@ export function renderOnboardGate(steamId) {
   });
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
