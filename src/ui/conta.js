@@ -89,7 +89,8 @@ export function renderConta() {
   if (user) {
     const p = jogadorPorSteam(steamIdDoUser(user));
     const nome = p ? p.name : "jogador";
-    const apel = p && p.apelido ? ` <span class="apelido">(${escapar(p.apelido)})</span>` : "";
+    const apel =
+      p && p.apelido ? ` <span class="apelido">(${escapar(p.apelido)})</span>` : "";
     const orgBtn = ehAdmin()
       ? `<button class="btn-org" onclick="abrirAdmin()">Organizador</button>`
       : "";
@@ -164,8 +165,8 @@ function renderFormConta(aba) {
     <input id="conta-senha" type="password" placeholder="senha" onkeydown="if(event.key==='Enter')${acao}">
     <div class="erro" id="conta-erro"></div>
     <div class="row-btns"><button class="btn" id="conta-btn" onclick="${acao}">${
-    aba === "cad" ? "Cadastrar" : "Entrar"
-  }</button></div>`;
+      aba === "cad" ? "Cadastrar" : "Entrar"
+    }</button></div>`;
 }
 
 function lerCampos() {
@@ -350,8 +351,8 @@ function mostrarVinculo() {
     <h2>Qual card é você?</h2>
     <div class="sub">Logado como <b>${escapar(perfilPendente.name)}</b>. Escolha seu card antigo ou crie um novo.</div>
     <div class="steam-preview">${avImg(perfilPendente.avatar, "")}<div><div class="nm">${escapar(
-    perfilPendente.name
-  )}</div><div class="id">${escapar(perfilPendente.steamId)}</div></div></div>
+      perfilPendente.name
+    )}</div><div class="id">${escapar(perfilPendente.steamId)}</div></div></div>
     <label>Reivindicar um card existente</label>
     <div class="tcol" style="min-height:auto">${lista}</div>
     <div class="row-btns"><button class="btn gold" onclick="criarNovoJogador()">Sou novo — criar meu card</button></div>`;

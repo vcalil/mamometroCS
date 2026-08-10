@@ -15,7 +15,5 @@ export function fecharOverlay() {
 
 // Tag <img> do avatar (ou string vazia se o jogador não tem perfil Steam).
 export function avImg(url, cls = "av") {
-  return url
-    ? `<img class="${cls}" src="${escapar(url)}" alt="" loading="lazy">`
-    : "";
+  return url ? `<img class="${cls}" src="${escapar(url)}" alt="" loading="lazy">` : "";
 }

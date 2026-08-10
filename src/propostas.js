@@ -21,7 +21,8 @@ export function setPropostas(obj) {
     .sort((a, b) => (b.ts || 0) - (a.ts || 0));
 }
 export const listaPropostas = () => fila;
-export const propostasAbertas = () => fila.filter((p) => (p.status || "aberta") === "aberta");
+export const propostasAbertas = () =>
+  fila.filter((p) => (p.status || "aberta") === "aberta");
 
 // Maioria simples dos ORGANIZADORES (master não vota, por decisão de projeto).
 // 1 organizador -> 1; 2 -> 2; 3 -> 2; 5 -> 3.

@@ -18,9 +18,7 @@ export const firebaseConfig = {
 };
 
 // Está configurado se as chaves essenciais existem (não vazias).
-export const configurado = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.databaseURL
-);
+export const configurado = Boolean(firebaseConfig.apiKey && firebaseConfig.databaseURL);
 
 let db = null;
 let app = null;

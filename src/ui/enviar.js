@@ -68,9 +68,7 @@ export function trocarTabEnviar(t) {
   document
     .querySelectorAll(".tabs .tab")
     .forEach((x) => x.classList.toggle("ativa", x.dataset.t === t));
-  document
-    .querySelectorAll(".painel")
-    .forEach((x) => x.classList.remove("ativo"));
+  document.querySelectorAll(".painel").forEach((x) => x.classList.remove("ativo"));
   document.getElementById("pn-" + t).classList.add("ativo");
 }
 
@@ -128,12 +126,12 @@ export function renderFormEnviar() {
       ? losers.length === 0
         ? `<div class="preview">Todo mundo bateu a meta — nenhuma mamada.</div>`
         : winners.length === 0
-        ? `<div class="preview">Ninguém bateu a meta — não sobra pra quem mamar 😅</div>`
-        : `<div class="preview"><b>${losers
-            .map((id) => escapar(nomeDoJogador(id)))
-            .join(", ")}</b> ${losers.length > 1 ? "mamam" : "mama"} <b>${winners
-            .map((id) => escapar(nomeDoJogador(id)))
-            .join(", ")}</b> — ${losers.length * winners.length} mamada(s).</div>`
+          ? `<div class="preview">Ninguém bateu a meta — não sobra pra quem mamar 😅</div>`
+          : `<div class="preview"><b>${losers
+              .map((id) => escapar(nomeDoJogador(id)))
+              .join(", ")}</b> ${losers.length > 1 ? "mamam" : "mama"} <b>${winners
+              .map((id) => escapar(nomeDoJogador(id)))
+              .join(", ")}</b> — ${losers.length * winners.length} mamada(s).</div>`
       : "";
 
   el.innerHTML = `
@@ -443,8 +441,8 @@ function gridDemo() {
           .join("");
       return `<div class="ocr-row ${l.playerId ? "" : "off"}">
         <div class="ocr-lida" title="SteamID ${escapar(l.steamId)}">${escapar(
-        l.nome
-      )} <small>${l.kills}k · ${l.damage} dano</small></div>
+          l.nome
+        )} <small>${l.kills}k · ${l.damage} dano</small></div>
         <select class="ocr-bind" onchange="demBind(${i},this.value)">${opts}</select>
         <input type="number" min="0" class="ocr-k" value="${
           l.kills ?? ""
@@ -508,7 +506,9 @@ export async function demArquivo(input) {
     );
     document.getElementById("dem-grid").innerHTML = gridDemo();
   } catch (e) {
-    pintar((e && e.message) || "Falhou ao ler a demo. Tente outra ou use a aba Partida na mão.");
+    pintar(
+      (e && e.message) || "Falhou ao ler a demo. Tente outra ou use a aba Partida na mão."
+    );
   } finally {
     dem.ocupado = false;
   }

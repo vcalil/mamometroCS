@@ -56,7 +56,9 @@ export function acharJogadorPorStat(e) {
     const p = dados.players.find((x) => x.steamId === String(sid));
     if (p) return p;
   }
-  const nome = String(e.name || e.nome || "").trim().toLowerCase();
+  const nome = String(e.name || e.nome || "")
+    .trim()
+    .toLowerCase();
   if (nome) return dados.players.find((x) => x.name.toLowerCase() === nome);
   return null;
 }
@@ -85,7 +87,11 @@ export function assinaturaPartida(m) {
 
 // Conjunto de participantes (por id): junta quem aparece em stats e em entries.
 function participantesSet(m) {
-  const set = new Set(statsList(m).map((s) => s.id).filter(Boolean));
+  const set = new Set(
+    statsList(m)
+      .map((s) => s.id)
+      .filter(Boolean)
+  );
   (m.entries || []).forEach((e) => {
     if (e.from) set.add(e.from);
     if (e.to) set.add(e.to);
@@ -139,11 +145,9 @@ export function salvarMeta() {
   if (db) return set(ref(db, "estado/meta"), dados.meta);
 }
 
-export const uid = () =>
-  Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
-export const nomeDe = (id) =>
-  (dados.players.find((p) => p.id === id) || {}).name || "—";
+export const nomeDe = (id) => (dados.players.find((p) => p.id === id) || {}).name || "—";
 
 // Selo do CS Rating (Premier) pra mostrar ao lado do nome. Só aparece se veio
 // da demo (rankType 11 = Premier) e é > 0. Aceita player ou id.
@@ -179,6 +183,6 @@ export function escapar(s) {
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#39;",
-      }[c])
+      })[c]
   );
 }

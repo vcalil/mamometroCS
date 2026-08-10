@@ -46,7 +46,8 @@ const AUTH_CODE_RE = /^[A-Za-z0-9]{4,5}-[A-Za-z0-9]{4,5}-[A-Za-z0-9]{4,5}$/;
 // IMPORTANTE: Steam gera com mixed case (ex. "CSGO-p8QNB-TUzXw-WA8oh-6sDxR-E8V5F")
 // e a API GetNextMatchSharingCode e CASE-SENSITIVE no match. Se o cliente upper-
 // casear antes de enviar, o codigo nao bate e a Steam devolve 412.
-const SHARE_CODE_RE = /^CSGO-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$/;
+const SHARE_CODE_RE =
+  /^CSGO-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}-[A-Za-z0-9]{5}$/;
 const STEAM_ID_RE = /^\d{17}$/;
 
 function parseInput(body) {
@@ -117,7 +118,9 @@ async function validarCodes(steamId, authCode, shareCode, key) {
   console.log(`[onboard] validarCodes: steamid=${steamId}`);
   const r = await fetch(url);
   if (r.status === 403) {
-    const e = new Error("authCode invalido ou expirado. Gera um novo no wizard da Valve.");
+    const e = new Error(
+      "authCode invalido ou expirado. Gera um novo no wizard da Valve."
+    );
     e.statusCode = 400;
     e.code = "auth_code_invalid";
     throw e;
@@ -127,8 +130,12 @@ async function validarCodes(steamId, authCode, shareCode, key) {
     // that belongs to the user" (Steam official quote). Quase sempre: share code
     // de outra pessoa, de FACEIT, ou revogado.
     let steamBody = "";
-    try { steamBody = await r.text(); } catch {}
-    const e = new Error(`Share code nao bate com a conta Steam (412). Steam body: ${steamBody.slice(0, 200) || "(vazio)"}. Confere se o share code e dessa mesma conta e de uma partida de Valve Matchmaking.`);
+    try {
+      steamBody = await r.text();
+    } catch {}
+    const e = new Error(
+      `Share code nao bate com a conta Steam (412). Steam body: ${steamBody.slice(0, 200) || "(vazio)"}. Confere se o share code e dessa mesma conta e de uma partida de Valve Matchmaking.`
+    );
     e.statusCode = 400;
     e.code = "share_code_invalid";
     throw e;
@@ -217,7 +224,7 @@ async function garantirNoRanking(db, steamId, name) {
 //   500 { ok: false, error: "firebase_not_configured" | "firebase_init_failed" }
 async function handleGet(event) {
   const steamId = String(
-    (event.queryStringParameters && event.queryStringParameters.steamId) || "",
+    (event.queryStringParameters && event.queryStringParameters.steamId) || ""
   ).trim();
 
   if (!STEAM_ID_RE.test(steamId)) {
@@ -228,7 +235,7 @@ async function handleGet(event) {
     return erro(
       500,
       "firebase_not_configured",
-      "FIREBASE_SA_PATH e FIREBASE_DATABASE_URL precisam estar no .env.",
+      "FIREBASE_SA_PATH e FIREBASE_DATABASE_URL precisam estar no .env."
     );
   }
 
@@ -236,10 +243,18 @@ async function handleGet(event) {
   try {
     app = initFirebase();
   } catch (e) {
-    return erro(500, "firebase_init_failed", e.message || "Nao consegui inicializar o Firebase Admin SDK.");
+    return erro(
+      500,
+      "firebase_init_failed",
+      e.message || "Nao consegui inicializar o Firebase Admin SDK."
+    );
   }
   if (!app) {
-    return erro(500, "firebase_init_failed", "Nao consegui inicializar o Firebase Admin SDK.");
+    return erro(
+      500,
+      "firebase_init_failed",
+      "Nao consegui inicializar o Firebase Admin SDK."
+    );
   }
 
   const db = admin.database();
@@ -264,14 +279,14 @@ export const handler = async (event) => {
     return erro(
       500,
       "steam_api_key_missing",
-      "STEAM_API_KEY nao configurada. Veja .env.",
+      "STEAM_API_KEY nao configurada. Veja .env."
     );
   }
   if (!process.env.FIREBASE_SA_PATH || !process.env.FIREBASE_DATABASE_URL) {
     return erro(
       500,
       "firebase_not_configured",
-      "FIREBASE_SA_PATH e FIREBASE_DATABASE_URL precisam estar no .env.",
+      "FIREBASE_SA_PATH e FIREBASE_DATABASE_URL precisam estar no .env."
     );
   }
 
@@ -303,7 +318,11 @@ export const handler = async (event) => {
     // 4) grava no RTDB
     const app = initFirebase();
     if (!app) {
-      return erro(500, "firebase_init_failed", "Nao consegui inicializar o Firebase Admin SDK.");
+      return erro(
+        500,
+        "firebase_init_failed",
+        "Nao consegui inicializar o Firebase Admin SDK."
+      );
     }
     const db = admin.database();
     const now = new Date().toISOString();
@@ -322,7 +341,9 @@ export const handler = async (event) => {
     try {
       await garantirNoRanking(db, steamId, name);
     } catch (e) {
-      console.error(`[onboard] WARN: nao consegui adicionar ${steamId} ao ranking: ${e.message}`);
+      console.error(
+        `[onboard] WARN: nao consegui adicionar ${steamId} ao ranking: ${e.message}`
+      );
     }
 
     return json(200, { ok: true, steamId, name });

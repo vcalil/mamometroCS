@@ -53,8 +53,6 @@ export const listaVotantes = () =>
   Object.keys(PAPEIS).filter((sid) => PAPEIS[sid] === "organizador");
 export const listaPapeis = () => ({ ...PAPEIS });
 
-
-
 // Rastreia o usuário logado de forma central e avisa quem se inscrever.
 let currentUser = null;
 let authReady = false; // vira true quando o Firebase resolve a sessão (evita flash)
@@ -119,7 +117,6 @@ export function msgErroAuth(e) {
   // O Authentication nem foi inicializado no projeto (falta clicar em "Começar").
   if (c === "auth/configuration-not-found")
     return "O Authentication ainda não foi ativado neste projeto do Firebase. No console: Authentication → Começar → Sign-in method → ative Email/Senha.";
-  if (c === "auth/network-request-failed")
-    return "Falha de rede. Tente de novo.";
+  if (c === "auth/network-request-failed") return "Falha de rede. Tente de novo.";
   return (e && e.message) || "Não deu pra completar. Tente de novo.";
 }

@@ -10,7 +10,13 @@ import { dados } from "./state.js";
 export const SEASONS_PADRAO = [
   { id: "s3", nome: "Season 3", inicio: "2025-07-15", fim: "2026-01-19" },
   { id: "s4", nome: "Season 4", inicio: "2026-01-20", fim: "2026-07-05" },
-  { id: "s5", nome: "Season 5", inicio: "2026-07-06", fim: "2027-01-05", fimEstimado: true },
+  {
+    id: "s5",
+    nome: "Season 5",
+    inicio: "2026-07-06",
+    fim: "2027-01-05",
+    fimEstimado: true,
+  },
 ];
 
 let seasons = SEASONS_PADRAO.slice();
@@ -29,9 +35,7 @@ export function salvarSeasons(lista) {
 // Season que contém uma data (YYYY-MM-DD).
 export function seasonDe(data) {
   if (!data) return null;
-  return (
-    seasons.find((s) => data >= s.inicio && (!s.fim || data <= s.fim)) || null
-  );
+  return seasons.find((s) => data >= s.inicio && (!s.fim || data <= s.fim)) || null;
 }
 
 // Season vigente hoje (ou a última que existir, se hoje estiver num vão).

@@ -26,7 +26,10 @@ export function traduzErro(body) {
       return "Conta Steam não encontrada. Confere e tenta de novo.";
     case "invalid_input":
     case "invalid_profile_url":
-      return msg || "Algum campo está em formato errado. Confere o formato (AAAA-1111-BBBB e CSGO-XXXXX-...-XXXXX).";
+      return (
+        msg ||
+        "Algum campo está em formato errado. Confere o formato (AAAA-1111-BBBB e CSGO-XXXXX-...-XXXXX)."
+      );
     case "steam_api_key_missing":
     case "firebase_not_configured":
     case "firebase_init_failed":

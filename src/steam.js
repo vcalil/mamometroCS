@@ -8,9 +8,7 @@ export async function buscarPerfilSteam(input) {
 
   let resp;
   try {
-    resp = await fetch(
-      "/api/steam-profile?input=" + encodeURIComponent(texto)
-    );
+    resp = await fetch("/api/steam-profile?input=" + encodeURIComponent(texto));
   } catch {
     throw new Error(
       "Não deu pra falar com o servidor. Rode o servidor local (`npm run start`) — o Vite puro não sobe as functions."

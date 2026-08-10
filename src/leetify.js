@@ -54,8 +54,8 @@ export async function validar(entries, data) {
             ? "confere"
             : "confere"
           : jogos.length > 1
-          ? "ambiguo"
-          : "difere",
+            ? "ambiguo"
+            : "difere",
         declarado: Number(e.kills),
         jogos,
       };

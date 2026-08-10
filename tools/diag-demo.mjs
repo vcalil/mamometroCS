@@ -14,7 +14,9 @@ if (!file) {
     .map((f) => ({ f, t: statSync(f).mtimeMs }))
     .sort((a, b) => b.t - a.t);
   if (!dems.length) {
-    console.error("Nenhum .dem na pasta. Passe o caminho: node tools/diag-demo.mjs arquivo.dem");
+    console.error(
+      "Nenhum .dem na pasta. Passe o caminho: node tools/diag-demo.mjs arquivo.dem"
+    );
     process.exit(1);
   }
   file = dems[0].f;
@@ -22,8 +24,7 @@ if (!file) {
 console.log("Arquivo:", file, "\n");
 
 const linha = (t) => console.log("\n===== " + t + " =====");
-const amostra = (arr, n = 1) =>
-  Array.isArray(arr) ? arr.slice(0, n) : arr;
+const amostra = (arr, n = 1) => (Array.isArray(arr) ? arr.slice(0, n) : arr);
 
 try {
   linha("parseHeader");

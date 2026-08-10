@@ -143,10 +143,12 @@ if (configurado) {
     // pesar o bundle inicial.
     window.__mamometroOnboardState = "loading";
     conta.renderApp(); // mostra "Verificando..."
-    import("./ui/onboard.js").then((m) => m.checarOnboard()).then((s) => {
-      window.__mamometroOnboardState = s;
-      conta.renderApp();
-    });
+    import("./ui/onboard.js")
+      .then((m) => m.checarOnboard())
+      .then((s) => {
+        window.__mamometroOnboardState = s;
+        conta.renderApp();
+      });
 
     desinscrever.push(
       onValue(

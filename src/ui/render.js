@@ -75,8 +75,8 @@ export function render() {
       <label class="sb-l">Temporada</label>
       <select class="sb-sel" onchange="trocarSeason(this.value)">
         ${opcoes}<option value="todas" ${
-    seasonSel === "todas" ? "selected" : ""
-  }>Todas (histórico)</option>
+          seasonSel === "todas" ? "selected" : ""
+        }>Todas (histórico)</option>
       </select>
       ${(() => {
         const s = seasons.find((x) => x.id === seasonSel);
@@ -108,9 +108,7 @@ export function render() {
         const p = dados.players.find((x) => x.id === id) || {};
         return { id, name: p.name || nomeDe(id), avatar: p.avatar || "", ...v };
       })
-      .sort(
-        (a, b) => b.pct - a.pct || b.jogos - a.jogos || a.name.localeCompare(b.name)
-      );
+      .sort((a, b) => b.pct - a.pct || b.jogos - a.jogos || a.name.localeCompare(b.name));
     if (!lista.length) {
       html += `<div class="vazio">Ainda não dá pra calcular — nenhuma partida com jogadores registrada.</div>`;
     } else {

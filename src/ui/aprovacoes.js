@@ -2,11 +2,7 @@
 // Só organizador vê e age — e as regras do banco garantem isso do lado de lá.
 import { dados, escapar, nomeDe, acharDuplicata } from "../state.js";
 import { usuarioAtual, steamIdDoUser } from "../auth.js";
-import {
-  listaSubmissoes,
-  aprovarSubmissao,
-  recusarSubmissao,
-} from "../submissoes.js";
+import { listaSubmissoes, aprovarSubmissao, recusarSubmissao } from "../submissoes.js";
 import { render } from "./render.js";
 
 const ORIGEM_ROTULO = {
@@ -109,7 +105,10 @@ export async function aprovar(key) {
   const sid = steamIdDoUser(user);
   const eu = dados.players.find((p) => p.steamId === sid);
   try {
-    await aprovarSubmissao(key, { steamId: sid || "", nome: eu ? eu.name : "organizador" });
+    await aprovarSubmissao(key, {
+      steamId: sid || "",
+      nome: eu ? eu.name : "organizador",
+    });
     render();
     renderAprovacoes();
   } catch (e) {

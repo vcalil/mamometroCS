@@ -116,11 +116,11 @@ function cardProposta(p, janelaAberta) {
   if (podeVotar) {
     botoes = `<div class="row-btns">
         <button class="btn mini ${meu === true ? "gold" : "sec"}" onclick="votarProposta('${p.key}',true)">A favor${
-      meu === true ? " ✓" : ""
-    }</button>
+          meu === true ? " ✓" : ""
+        }</button>
         <button class="btn mini ${meu === false ? "gold" : "sec"}" onclick="votarProposta('${p.key}',false)">Contra${
-      meu === false ? " ✓" : ""
-    }</button>
+          meu === false ? " ✓" : ""
+        }</button>
       </div>`;
   } else if (ehOrganizador() && !fechada) {
     botoes = `<div class="hint">Pauta de assembleia: a votação abre em dezembro.</div>`;
@@ -151,16 +151,16 @@ function cardProposta(p, janelaAberta) {
     p.tipo === "meta" && p.valor
       ? `<div class="al-num">${p.valor.kills} kills / ${p.valor.damage} dano</div>`
       : p.tipo === "admin" && p.valor
-      ? `<div class="al-num">promover <b>${escapar(p.valor.nome || "")}</b></div>`
-      : "";
+        ? `<div class="al-num">promover <b>${escapar(p.valor.nome || "")}</b></div>`
+        : "";
 
   return `<div class="aprov-item">
     <div class="ai-topo">
       <div><b>${escapar(p.titulo || TIPOS[p.tipo] || "Proposta")}</b>
         <span class="ai-tag">${TIPOS[p.tipo] || p.tipo}</span> ${selo}</div>
       <div class="ai-autor">por ${escapar((p.autor && p.autor.nome) || "?")} · ${
-    sim
-  } a favor, ${nao} contra</div>
+        sim
+      } a favor, ${nao} contra</div>
     </div>
     ${detalheValor}
     ${p.detalhe ? `<div class="ai-det">${escapar(p.detalhe)}</div>` : ""}
@@ -215,7 +215,9 @@ export async function votarProposta(key, sim) {
       // continuam com o master, que é quem tem permissão de gravá-las.
       if (p.tipo === "admin") {
         await aplicar(atual);
-        alert(`Maioria atingida! ${(p.valor && p.valor.nome) || "O jogador"} já é organizador.`);
+        alert(
+          `Maioria atingida! ${(p.valor && p.valor.nome) || "O jogador"} já é organizador.`
+        );
       } else {
         alert("Maioria atingida! A proposta foi aprovada — um master vai aplicar.");
       }
@@ -253,9 +255,10 @@ export async function proporAdmin() {
   const p = dados.players.find((x) => x.id === pid);
   if (!p) return alert("Escolha um jogador.");
   if (!p.steamId)
-    return alert(`${p.name} ainda não vinculou o card à conta da Steam — sem SteamID não dá pra promover.`);
-  if (papelDe(p.steamId))
-    return alert(`${p.name} já tem papel: ${papelDe(p.steamId)}.`);
+    return alert(
+      `${p.name} ainda não vinculou o card à conta da Steam — sem SteamID não dá pra promover.`
+    );
+  if (papelDe(p.steamId)) return alert(`${p.name} já tem papel: ${papelDe(p.steamId)}.`);
   try {
     await criarProposta({
       tipo: "admin",
@@ -272,7 +275,6 @@ export async function proporAdmin() {
   }
 }
 
-
 // ---- Master: decide sem votar ----
 export async function decidirMaster(key, aprovar) {
   const p = listaPropostas().find((x) => x.key === key);
@@ -281,14 +283,12 @@ export async function decidirMaster(key, aprovar) {
   if (!confirm(`${rotulo} esta proposta direto, sem votação?\n\n"${p.titulo}"`)) return;
   try {
     if (aprovar) await aplicar(p);
-    else
-      await marcarStatus(key, "recusada");
+    else await marcarStatus(key, "recusada");
     renderAssembleia();
   } catch (e) {
     alert("Não deu pra decidir: " + ((e && e.message) || ""));
   }
 }
-
 
 // Master executa o efeito de uma proposta já aprovada pela votação.
 export async function aplicarProposta(key) {

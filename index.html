@@ -1,39 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mamômetro — Ranking oficial das mamadas</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/src/styles.css">
-</head>
-<body>
-<div class="wrap">
-  <header class="topo">
-    <div class="marca">
-      <h1>MAM<span class="o">Ô</span>METRO</h1>
-      <div class="tag">Ranking oficial das mamadas <span class="live" id="live"><span class="dot"></span><span id="live-txt">conectando</span></span></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mamômetro — Ranking oficial das mamadas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="topo">
+        <div class="marca">
+          <h1>MAM<span class="o">Ô</span>METRO</h1>
+          <div class="tag">
+            Ranking oficial das mamadas
+            <span class="live" id="live"
+              ><span class="dot"></span><span id="live-txt">conectando</span></span
+            >
+          </div>
+        </div>
+        <div class="topo-acoes">
+          <a class="btn-org" href="/onboard.html">Entrar no Mamômetro</a>
+          <button class="btn-org" onclick="abrirAjuda()">Como funciona</button>
+          <span id="conta"></span>
+        </div>
+      </header>
+
+      <div class="resumo">
+        <div class="stat">
+          <div class="n" id="st-partidas">0</div>
+          <div class="l">Partidas</div>
+        </div>
+        <div class="stat">
+          <div class="n" id="st-mamadas">0</div>
+          <div class="l">Mamadas no total</div>
+        </div>
+        <div class="stat">
+          <div class="n" id="st-jogadores">0</div>
+          <div class="l">Na disputa</div>
+        </div>
+      </div>
+
+      <div id="conteudo"><div class="vazio">Carregando o placar...</div></div>
     </div>
-    <div class="topo-acoes">
-      <a class="btn-org" href="/onboard.html">Entrar no Mamômetro</a>
-      <button class="btn-org" onclick="abrirAjuda()">Como funciona</button>
-      <span id="conta"></span>
-    </div>
-  </header>
 
-  <div class="resumo">
-    <div class="stat"><div class="n" id="st-partidas">0</div><div class="l">Partidas</div></div>
-    <div class="stat"><div class="n" id="st-mamadas">0</div><div class="l">Mamadas no total</div></div>
-    <div class="stat"><div class="n" id="st-jogadores">0</div><div class="l">Na disputa</div></div>
-  </div>
+    <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 
-  <div id="conteudo"><div class="vazio">Carregando o placar...</div></div>
-</div>
-
-<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
-
-<script type="module" src="/src/main.js"></script>
-</body>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>

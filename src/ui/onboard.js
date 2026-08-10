@@ -49,7 +49,8 @@ export async function checarOnboard() {
       // (window.__mamometroOnboardState ja' em "onboarded" e o RTDB ainda nao
       // propagou). So atualiza se o state global ainda for "loading" (i.e.,
       // nao houve submit recente).
-      const novoEstado = entry && entry.status === "active" ? "onboarded" : "not_onboarded";
+      const novoEstado =
+        entry && entry.status === "active" ? "onboarded" : "not_onboarded";
       if (window.__mamometroOnboardState !== "onboarded") {
         estado = novoEstado;
       }
@@ -84,7 +85,8 @@ export async function submeterOnboard(authCode, shareCode) {
   const user = usuarioAtual();
   if (!user) throw new Error("Sessao expirou. Faz login de novo.");
   const steamId = steamIdDoUser(user);
-  if (!steamId) throw new Error("Conta sem steamId vinculado. Recarrega e tenta de novo.");
+  if (!steamId)
+    throw new Error("Conta sem steamId vinculado. Recarrega e tenta de novo.");
 
   const body = await postOnboard({ steamId, authCode, shareCode });
   marcarOnboarded();
@@ -200,4 +202,3 @@ export function renderOnboardGate(steamId) {
     }
   });
 }
-

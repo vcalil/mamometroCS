@@ -190,10 +190,15 @@ function porEventos(f) {
     const a = String(e.attacker_steamid || "");
     const v = String(e.user_steamid || "");
     registra(a, e.attacker_name);
-    if (ehSteamValido(a) && a !== v) dano[a] = (dano[a] || 0) + (Number(e.dmg_health) || 0);
+    if (ehSteamValido(a) && a !== v)
+      dano[a] = (dano[a] || 0) + (Number(e.dmg_health) || 0);
   }
 
-  const sids = new Set([...Object.keys(nome), ...Object.keys(kills), ...Object.keys(dano)]);
+  const sids = new Set([
+    ...Object.keys(nome),
+    ...Object.keys(kills),
+    ...Object.keys(dano),
+  ]);
   const lista = [...sids].filter(ehSteamValido).map((sid) => ({
     name: nome[sid] || sid,
     steamId: sid,
@@ -254,7 +259,9 @@ try {
 }
 
 // Resumo legível no stderr (não polui o JSON do stdout).
-console.error(`\n✔ ${jogadores.length} jogadores — fonte: ${fonte}${mapa ? ` — mapa: ${mapa}` : ""}`);
+console.error(
+  `\n✔ ${jogadores.length} jogadores — fonte: ${fonte}${mapa ? ` — mapa: ${mapa}` : ""}`
+);
 console.error(`   ${"nome".padEnd(18)}  K/D/A     dano   🔦flash 💣util`);
 for (const p of jogadores) {
   const kda = `${p.kills}/${p.deaths}/${p.assists}`;

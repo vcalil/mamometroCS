@@ -87,9 +87,7 @@ export function trocarTab(t) {
   document
     .querySelectorAll(".tab")
     .forEach((x) => x.classList.toggle("ativa", x.dataset.t === t));
-  document
-    .querySelectorAll(".painel")
-    .forEach((x) => x.classList.remove("ativo"));
+  document.querySelectorAll(".painel").forEach((x) => x.classList.remove("ativo"));
   document.getElementById("pn-" + t).classList.add("ativo");
 }
 
@@ -169,7 +167,9 @@ export function mesclarJogadores() {
   const manterId = (document.getElementById("merge-keep") || {}).value;
   const removerId = (document.getElementById("merge-remove") || {}).value;
   if (!manterId || !removerId || manterId === removerId)
-    return alert("Escolha dois cards diferentes: o que fica (esquerda) e o duplicado (direita).");
+    return alert(
+      "Escolha dois cards diferentes: o que fica (esquerda) e o duplicado (direita)."
+    );
   const manter = dados.players.find((p) => p.id === manterId);
   const remover = dados.players.find((p) => p.id === removerId);
   if (!manter || !remover) return;
@@ -555,11 +555,7 @@ function aplicarJsonPartida(texto) {
   time = novoTime;
   stats = novoStats;
   if (typeof data.date === "string") dataPartida = data.date;
-  if (
-    data.meta &&
-    Number.isFinite(data.meta.kills) &&
-    Number.isFinite(data.meta.damage)
-  )
+  if (data.meta && Number.isFinite(data.meta.kills) && Number.isFinite(data.meta.damage))
     dados.meta = { kills: data.meta.kills, damage: data.meta.damage };
 
   renderPartida(); // recria o painel já preenchido
@@ -635,7 +631,10 @@ export function salvarPartida() {
   }));
   const dataFinal = dataPartida || new Date().toISOString().slice(0, 10);
   // Anti-duplicata: idêntica bloqueia; mesma data + jogadores só avisa.
-  const dup = acharDuplicata({ date: dataFinal, stats: statsArr, entries }, dados.matches);
+  const dup = acharDuplicata(
+    { date: dataFinal, stats: statsArr, entries },
+    dados.matches
+  );
   if (dup) {
     if (dup.tipo === "exata")
       return alert("Essa partida já está registrada (mesma data, jogadores e números).");
@@ -681,13 +680,17 @@ export async function copiarCfgGsi() {
   const ta = document.getElementById("cfg-txt");
   try {
     await navigator.clipboard.writeText(gerarCfg());
-    alert("Texto do .cfg copiado! Cole num arquivo e salve como gamestate_integration_mamometro.cfg");
+    alert(
+      "Texto do .cfg copiado! Cole num arquivo e salve como gamestate_integration_mamometro.cfg"
+    );
   } catch {
     if (ta) {
       ta.focus();
       ta.select();
     }
-    alert("Não consegui copiar automaticamente. O texto já está selecionado — use Ctrl+C.");
+    alert(
+      "Não consegui copiar automaticamente. O texto já está selecionado — use Ctrl+C."
+    );
   }
 }
 export function descartarGsi(key) {
@@ -786,7 +789,9 @@ export function renderHistorico() {
     el.innerHTML = `<div class="aviso">Nenhuma partida registrada ainda.</div>`;
     return;
   }
-  const ord = [...dados.matches].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const ord = [...dados.matches].sort((a, b) =>
+    (b.date || "").localeCompare(a.date || "")
+  );
   el.innerHTML = ord
     .map((m) => {
       const pares = (m.entries || [])
@@ -827,7 +832,6 @@ export function removerPartida(id) {
   renderHistorico();
   render();
 }
-
 
 // ---- Aba Config: papéis e temporadas ----
 const ROTULO_PAPEL = { master: "master", organizador: "organizador" };
@@ -926,7 +930,8 @@ export function renderConfig() {
 export async function definirPapel(steamId, papel) {
   if (!ehMaster()) return alert("Só o master pode mudar papéis.");
   const nome = (dados.players.find((p) => p.steamId === steamId) || {}).name || steamId;
-  if (!papel && !confirm(`Remover o papel de ${nome}? Ele volta a ser usuário comum.`)) return;
+  if (!papel && !confirm(`Remover o papel de ${nome}? Ele volta a ser usuário comum.`))
+    return;
   try {
     await set(ref(db, "papeis/" + steamId), papel || null);
     renderConfig();
