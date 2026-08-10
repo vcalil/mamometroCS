@@ -41,7 +41,7 @@ export const cfgSemUrlPublica = () => !SITE_URL;
 // Monta o conteúdo do .cfg apontando pro site publicado.
 export function gerarCfg() {
   const base = SITE_URL || "https://SEU-SITE.netlify.app";
-  const uri = `${base}/.netlify/functions/gsi`;
+  const uri = `${base}/api/gsi`;
   return `"Mamometro CS - GSI"
 {
   "uri" "${uri}"

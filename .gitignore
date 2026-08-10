@@ -12,4 +12,4 @@ dist
 match730_*.json
 demo-downloader/config/
 .mm-creds
-estado-antes-restore-*.json
+estado-antes-*.json

@@ -9,11 +9,11 @@ export async function buscarPerfilSteam(input) {
   let resp;
   try {
     resp = await fetch(
-      "/.netlify/functions/steam-profile?input=" + encodeURIComponent(texto)
+      "/api/steam-profile?input=" + encodeURIComponent(texto)
     );
   } catch {
     throw new Error(
-      "Não deu pra falar com o servidor. Rode com `netlify dev` (o Vite puro não sobe as functions)."
+      "Não deu pra falar com o servidor. Rode o servidor local (`npm run start`) — o Vite puro não sobe as functions."
     );
   }
 

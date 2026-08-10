@@ -1,6 +1,7 @@
-// Servidor local (usado no Docker e via `npm run start`).
-// Serve o site já buildado (dist/) e responde à mesma Netlify Function do
-// Steam — reaproveitando exatamente o handler de produção, sem duplicar lógica.
+// Servidor self-hosted (entry point do Docker e do `npm run start`).
+// Serve o site já buildado (dist/) e responde às funções em /api/* (steam-profile,
+// gsi, onboard) reaproveitando os mesmos handlers de netlify/functions/, sem
+// duplicar lógica. É o único caminho de deploy (Netlify foi descontinuado).
 import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { existsSync, statSync } from "node:fs";
@@ -11,11 +12,11 @@ import { handler as onboard } from "./netlify/functions/onboard.js";
 
 const DIST = path.resolve("dist");
 const PORT = process.env.PORT || 8888;
-const FUNCS = { "steam-profile": steamProfile, gsi };
-// F1 Fase 3: endpoint /api/onboard (rota dedicada, espelha /.netlify/functions
-// no path). Fica aqui (e não em netlify.toml) porque o server.js é o entry
-// point único do Docker self-hosted.
-const API_ROUTES = { onboard };
+// As funções são servidas em /api/:name (padrão self-hosted, entry point único
+// do Docker). O caminho /.netlify/functions/:name segue como alias LEGADO —
+// compat com URLs antigas e com o .cfg do GSI já instalado no CS2 da galera,
+// até a migração de domínio concluir. Mesmos handlers nos dois caminhos.
+const HANDLERS = { "steam-profile": steamProfile, gsi, onboard };
 
 function lerCorpo(req) {
   return new Promise((resolve) => {
@@ -84,33 +85,13 @@ async function chamarHandler(handler, req, url) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
 
-  // ---- API dedicada (F1 Fase 3+) ----
-  const mApi = url.pathname.match(/^\/api\/([\w-]+)\/?$/);
-  if (mApi && API_ROUTES[mApi[1]]) {
+  // ---- API: /api/:name (padrão) + /.netlify/functions/:name (alias legado) ----
+  const mApi =
+    url.pathname.match(/^\/api\/([\w-]+)\/?$/) ||
+    url.pathname.match(/^\/\.netlify\/functions\/([\w-]+)$/);
+  if (mApi && HANDLERS[mApi[1]]) {
     try {
-      const { status, headers, body } = await chamarHandler(
-        API_ROUTES[mApi[1]],
-        req,
-        url,
-      );
-      res.writeHead(status, headers);
-      res.end(body);
-    } catch (e) {
-      res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
-      res.end(JSON.stringify({ error: e.message || "Erro interno." }));
-    }
-    return;
-  }
-
-  // ---- Rotas das Netlify Functions ----
-  const mFunc = url.pathname.match(/^\/\.netlify\/functions\/([\w-]+)$/);
-  if (mFunc && FUNCS[mFunc[1]]) {
-    try {
-      const { status, headers, body } = await chamarHandler(
-        FUNCS[mFunc[1]],
-        req,
-        url,
-      );
+      const { status, headers, body } = await chamarHandler(HANDLERS[mApi[1]], req, url);
       res.writeHead(status, headers);
       res.end(body);
     } catch (e) {
