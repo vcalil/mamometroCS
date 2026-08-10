@@ -179,6 +179,33 @@ function initFirebase() {
   return _app;
 }
 
+// ---- estado/players (ranking) -------------------------------------------------
+
+// Mesmo formato de id do SPA (state.js uid): Date.now().toString(36) + random.
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// Adiciona {id, steamId, name, avatar, profileUrl} a estado/players se o
+// steamId ainda nao estiver la. estado/players pode ser lista ou objeto
+// chaveado — normaliza pra lista. Idempotente.
+async function garantirNoRanking(db, steamId, name) {
+  const playersRef = db.ref("estado/players");
+  const snap = await playersRef.once("value");
+  let players = snap.val();
+  if (!players) players = [];
+  if (!Array.isArray(players)) players = Object.values(players);
+  if (players.some((p) => p && p.steamId === steamId)) return; // ja presente
+  players.push({
+    id: uid(),
+    steamId,
+    name,
+    avatar: "",
+    profileUrl: "",
+  });
+  await playersRef.set(players);
+}
+
 // ---- handler ---------------------------------------------------------------
 
 // F1 Fase 4: GET /api/onboard?steamId=X — checa se o jogador ja esta no roster
@@ -287,6 +314,16 @@ export const handler = async (event) => {
       status: "active",
       updatedAt: now,
     });
+
+    // 5) garante presenca no ranking (estado/players). O onboarding self-serve
+    // adiciona o jogador na lista que o site mostra — sem isso, quem onboarda
+    // fica invisivel no ranking ate' o organizer cadastrar manualmente.
+    // Best-effort: falha aqui nao bloqueia o onboard (roster/ ja' gravou).
+    try {
+      await garantirNoRanking(db, steamId, name);
+    } catch (e) {
+      console.error(`[onboard] WARN: nao consegui adicionar ${steamId} ao ranking: ${e.message}`);
+    }
 
     return json(200, { ok: true, steamId, name });
   } catch (err) {

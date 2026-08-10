@@ -71,6 +71,45 @@ def read_roster() -> dict[str, dict[str, Any]]:
     return out
 
 
+def read_group() -> dict[str, dict[str, Any]]:
+    """Read `estado/players` (the FULL group, onboarded or not).
+
+    `estado/players` e' o que o ranking usa (10 jogadores registrados). Pode
+    vir em 3 formatos:
+      - list of dicts:  [{steamId, name, ...}, ...]
+      - keyed dict:     {<id>: {steamId, name, ...}, ...} ou {<steamId>: {...}}
+      - list of str:    ["7656...", ...]
+
+    Normaliza tudo pra `{steamId: {...}}`. Retorna {} se o node nao existe.
+    """
+    root = _init()
+    if root is None:
+        raise RuntimeError(
+            "Firebase not configured. Set FIREBASE_SA_PATH and FIREBASE_DATABASE_URL."
+        )
+    snap = root.child("estado/players").get()
+    if snap is None:
+        return {}
+    out: dict[str, dict[str, Any]] = {}
+    if isinstance(snap, list):
+        # [{steamId, name, ...}] ou ["7656..."]
+        for entry in snap:
+            if isinstance(entry, dict):
+                sid = entry.get("steamId")
+                if sid:
+                    out[str(sid)] = dict(entry)
+            elif isinstance(entry, str) and entry:
+                out[entry] = {}
+    elif isinstance(snap, dict):
+        for k, v in snap.items():
+            if isinstance(v, dict):
+                sid = v.get("steamId") or k
+                out[str(sid)] = dict(v)
+            else:
+                out[str(k)] = {}
+    return out
+
+
 def read_pipeline_status() -> dict[str, dict[str, Any]]:
     """Read `pipeline/status/{steamId}` as `{steamId: {...}}`. Empty if missing."""
     root = _init()
