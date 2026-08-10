@@ -63,7 +63,7 @@ services:
       - FIREBASE_DATABASE_URL=${FIREBASE_DATABASE_URL}
       - FIREBASE_SA_PATH=/secrets/firebase-admin.json
       - ROSTER_PATH=/config/roster.json
-      - GROUP_MIN_MEMBERS=${GROUP_MIN_MEMBERS:-4}
+      - GROUP_MIN_MEMBERS=${GROUP_MIN_MEMBERS:-3}
       - POLL_INTERVAL_SEC=30
       - DELETE_AFTER_PROCESS=true
       - FILE_STABILITY_SEC=5

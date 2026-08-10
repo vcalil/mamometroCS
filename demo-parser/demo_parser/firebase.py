@@ -83,6 +83,9 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
         existing = ref.get() or []
         if any(isinstance(x, dict) and x.get("id") == fingerprint_id for x in existing):
             return False
+        # Partida nova: propaga o rank (CS Rating Premier) dos jogadores pros
+        # cards em estado/players, pra o selo de rank aparecer no ranking.
+        atualizar_ranks(match)
         new_entry = {
             "id": fingerprint_id,
             "date": match.get("date"),
@@ -100,6 +103,67 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
             file=sys.stderr,
         )
         return False
+
+
+def atualizar_ranks(match: dict[str, Any]) -> int:
+    """Propaga o CS Rating (Premier) do demo pros cards em estado/players.
+
+    Só atualiza quando rankType == 11 (Premier) e csRating > 0 — mesma regra do
+    fluxo manual do SPA (enviar.js). Read-modify-write: lê o nó, muda só esses
+    dois campos dos jogadores presentes na partida e grava de volta (preserva
+    todo o resto do card e a forma list|dict). Retorna quantos cards mudaram.
+    Best-effort: loga e retorna 0 em erro.
+    """
+    root = ensure_db()
+    if root is None:
+        return 0
+    try:
+        # rank por steamId — só Premier (rankType 11) com rating > 0.
+        rank_por_sid: dict[str, tuple[int, int]] = {}
+        for pl in match.get("players", []):
+            sid = str(pl.get("steamId") or "")
+            rt = int(pl.get("rankType") or 0)
+            cr = int(pl.get("csRating") or 0)
+            if sid and rt == 11 and cr > 0:
+                rank_por_sid[sid] = (cr, rt)
+        if not rank_por_sid:
+            return 0
+
+        ref = root.child("estado/players")
+        players = ref.get()
+        if not players:
+            return 0
+
+        mudou = 0
+
+        def _upd(card: Any) -> Any:
+            nonlocal mudou
+            if not isinstance(card, dict):
+                return card
+            sid = str(card.get("steamId") or "")
+            novo = rank_por_sid.get(sid)
+            if novo and (card.get("csRating") != novo[0] or card.get("rankType") != novo[1]):
+                card = dict(card)
+                card["csRating"], card["rankType"] = novo
+                mudou += 1
+            return card
+
+        if isinstance(players, list):
+            players = [_upd(c) for c in players]
+        elif isinstance(players, dict):
+            players = {k: _upd(v) for k, v in players.items()}
+        else:
+            return 0
+
+        if mudou:
+            ref.set(players)
+        return mudou
+    except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
+        print(
+            f"[demo_parser] WARN: atualizar_ranks falhou: {exc}",
+            file=sys.stderr,
+        )
+        return 0
 
 
 def update_status(partial: dict[str, Any]) -> bool:

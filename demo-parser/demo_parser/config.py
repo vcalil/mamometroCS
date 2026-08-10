@@ -24,8 +24,8 @@ def roster_path() -> str | None:
 
 
 def group_min_members() -> int:
-    """Mínimo de membros do grupo numa demo pra ela ser salva (default 4)."""
-    return env_int("GROUP_MIN_MEMBERS", 4, minimum=1)
+    """Mínimo de membros do grupo numa demo pra ela ser salva (default 3)."""
+    return env_int("GROUP_MIN_MEMBERS", 3, minimum=1)
 
 
 def demos_dir() -> Path:
