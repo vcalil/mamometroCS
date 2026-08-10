@@ -27,6 +27,10 @@ import { listaSeasons, salvarSeasons } from "../seasons.js";
 import { db } from "../firebase.js";
 import { ref, set } from "firebase/database";
 import { buscarPerfilSteam } from "../steam.js";
+import { abrirOverlay, avImg } from "./overlay.js";
+// Re-exporta fecharOverlay pra tabela window do main.js continuar achando
+// admin.fecharOverlay (usado nos onclick e no clique fora do modal).
+export { fecharOverlay } from "./overlay.js";
 import {
   listaPendentes,
   pendentePara,
@@ -35,18 +39,7 @@ import {
   gerarCfg,
 } from "../gsi-client.js";
 
-// ---- helpers ----
-function avImg(url, cls = "av") {
-  return url
-    ? `<img class="${cls}" src="${escapar(url)}" alt="" loading="lazy">`
-    : "";
-}
-function abrirOverlay() {
-  document.getElementById("overlay").classList.add("on");
-}
-export function fecharOverlay() {
-  document.getElementById("overlay").classList.remove("on");
-}
+// ---- helpers ---- (avImg + abrir/fecharOverlay vêm de ./overlay.js)
 
 // ---- Painel (acesso: admins por SteamID — Vini e Iago) ----
 let time = [];

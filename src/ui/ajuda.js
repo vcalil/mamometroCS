@@ -1,7 +1,5 @@
 // Guia público "Como funciona" — aberto pelo botão no cabeçalho.
-function abrir() {
-  document.getElementById("overlay").classList.add("on");
-}
+import { abrirOverlay } from "./overlay.js";
 
 export function abrirAjuda() {
   document.getElementById("modal").innerHTML = `
@@ -28,5 +26,5 @@ export function abrirAjuda() {
       Você só precisa entrar pra aparecer no ranking. 🎯</p>
     </div>
     <div class="row-btns"><button class="btn" onclick="abrirConta('cad')">Entrar / Cadastrar</button></div>`;
-  abrir();
+  abrirOverlay();
 }

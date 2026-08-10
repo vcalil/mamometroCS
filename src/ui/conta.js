@@ -20,18 +20,10 @@ import {
   SENHA_MIN,
 } from "../auth.js";
 import { render } from "./render.js";
+import { abrirOverlay, fecharOverlay, avImg } from "./overlay.js";
 
 let perfilPendente = null; // perfil da Steam resolvido, aguardando vínculo
 
-function avImg(url, cls = "av") {
-  return url ? `<img class="${cls}" src="${escapar(url)}" alt="" loading="lazy">` : "";
-}
-function abrir() {
-  document.getElementById("overlay").classList.add("on");
-}
-function fechar() {
-  document.getElementById("overlay").classList.remove("on");
-}
 const jogadorPorSteam = (sid) => dados.players.find((p) => p.steamId === sid);
 
 // ---- Início: escuta mudanças de login ----
@@ -149,10 +141,10 @@ export function abrirConta(aba = "entrar") {
     <div class="sub">Entre com seu perfil da Steam pra aparecer no ranking com avatar.</div>
     ${tabsContaHtml(aba)}`;
   renderFormConta(aba);
-  abrir();
+  abrirOverlay();
 }
 export function fecharConta() {
-  fechar();
+  fecharOverlay();
 }
 export function trocarTabConta(aba) {
   document
@@ -235,7 +227,7 @@ export async function fazerEntrar() {
     if (cardExistente) {
       sincronizarDaSteam(cardExistente, perfilPendente);
       perfilPendente = null;
-      fechar();
+      fecharOverlay();
     } else {
       mostrarVinculo();
     }
@@ -337,7 +329,7 @@ function mostrarVinculo() {
   if (jaTem) {
     const nome = jaTem.name;
     perfilPendente = null;
-    fechar();
+    fecharOverlay();
     renderApp();
     alert(`Senha criada! Você entrou como ${nome}.`);
     return;
@@ -363,7 +355,7 @@ function mostrarVinculo() {
     <label>Reivindicar um card existente</label>
     <div class="tcol" style="min-height:auto">${lista}</div>
     <div class="row-btns"><button class="btn gold" onclick="criarNovoJogador()">Sou novo — criar meu card</button></div>`;
-  abrir();
+  abrirOverlay();
 }
 
 // Trava de segurança: gravar a lista de jogadores SEM os dados carregados
@@ -387,7 +379,7 @@ export function reivindicar(id) {
   p.profileUrl = perfilPendente.profileUrl || "";
   salvarJogadores();
   perfilPendente = null;
-  fechar();
+  fecharOverlay();
   renderApp();
 }
 export function criarNovoJogador() {
@@ -402,7 +394,7 @@ export function criarNovoJogador() {
   });
   salvarJogadores();
   perfilPendente = null;
-  fechar();
+  fecharOverlay();
   renderApp();
 }
 

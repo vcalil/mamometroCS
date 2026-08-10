@@ -15,6 +15,7 @@ import { enviarSubmissao, listaSubmissoes } from "../submissoes.js";
 import { validar } from "../leetify.js";
 import { pendentePara } from "../gsi-client.js";
 import { lerDemo } from "../demo.js";
+import { abrirOverlay, fecharOverlay, avImg } from "./overlay.js";
 
 let time = [];
 let stats = {}; // { playerId: { kills, damage } }
@@ -27,14 +28,8 @@ let dem = { players: [], ocupado: false };
 let mapaPartida = ""; // mapa lido da demo (só o caminho "Por demo" preenche)
 
 const nomeDoJogador = (id) => (dados.players.find((p) => p.id === id) || {}).name || "—";
-const avImg = (url) =>
-  url ? `<img class="av" src="${escapar(url)}" alt="" loading="lazy">` : "";
-
-function abrir() {
-  document.getElementById("overlay").classList.add("on");
-}
 export function fecharEnviar() {
-  document.getElementById("overlay").classList.remove("on");
+  fecharOverlay();
 }
 
 export function abrirEnviar() {
@@ -66,7 +61,7 @@ export function abrirEnviar() {
   renderDemoEnviar();
   renderJsonEnviar();
   renderAjudaEnviar();
-  abrir();
+  abrirOverlay();
 }
 
 export function trocarTabEnviar(t) {

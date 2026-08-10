@@ -2,13 +2,7 @@ import { dados, nomeDe, escapar, nomeApelidoHtml, rankBadgeHtml } from "../state
 import { estatisticas, taxaMamada } from "../stats.js";
 import { configurado } from "../firebase.js";
 import { listaSeasons, seasonAtual } from "../seasons.js";
-
-// Tag <img> do avatar (ou vazio se o jogador não tem perfil Steam).
-function avImg(url, cls = "av") {
-  return url
-    ? `<img class="${cls}" src="${escapar(url)}" alt="" loading="lazy">`
-    : "";
-}
+import { avImg } from "./overlay.js";
 
 // Duas visões do mesmo ranking. Cada uma troca só os textos.
 const TEXTOS = {

@@ -11,6 +11,7 @@ import {
 } from "../auth.js";
 import { db } from "../firebase.js";
 import { ref, set } from "firebase/database";
+import { abrirOverlay, fecharOverlay } from "./overlay.js";
 import {
   TIPOS,
   listaPropostas,
@@ -32,11 +33,8 @@ function meuNome() {
   return p ? p.name : "jogador";
 }
 
-function abrir() {
-  document.getElementById("overlay").classList.add("on");
-}
 export function fecharAssembleia() {
-  document.getElementById("overlay").classList.remove("on");
+  fecharOverlay();
 }
 
 // ---- Tela aberta a todos: enviar sugestão + acompanhar votação ----
@@ -48,7 +46,7 @@ export function abrirAssembleia() {
     <div class="sub">Sugira uma meta ou regra. Os organizadores votam em dezembro.</div>
     <div id="pn-assemb"></div>`;
   renderAssembleia();
-  abrir();
+  abrirOverlay();
 }
 
 export function renderAssembleia() {
