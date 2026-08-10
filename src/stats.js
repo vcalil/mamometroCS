@@ -1,4 +1,4 @@
-import { dados, statsList } from "./state.js";
+import { dados, statsList, todosBateram } from "./state.js";
 import { partidasDaSeason } from "./seasons.js";
 
 // ---- Taxa de mamada (rating de cada jogador) ------------------------------
@@ -15,26 +15,29 @@ import { partidasDaSeason } from "./seasons.js";
 export function taxaMamada(seasonId = "todas") {
   const jogos = {};
   const mamou = {};
-  partidasDaSeason(seasonId).forEach((m) => {
-    const entries = m.entries || [];
-    // `stats` pode ser array [{id,...}] (partida do admin) ou objeto
-    // {id:{...}} (partida enviada) — extrai os ids reais dos dois jeitos.
-    const participantes = new Set();
-    if (Array.isArray(m.stats)) {
-      m.stats.forEach((s) => s && s.id && participantes.add(s.id));
-    } else if (m.stats && typeof m.stats === "object") {
-      Object.keys(m.stats).forEach((id) => participantes.add(id));
-    }
-    entries.forEach((e) => {
-      if (e.from) participantes.add(e.from);
-      if (e.to) participantes.add(e.to);
+  // Partidas onde todos bateram a meta não contam (não diluem o rate).
+  partidasDaSeason(seasonId)
+    .filter((m) => !todosBateram(m))
+    .forEach((m) => {
+      const entries = m.entries || [];
+      // `stats` pode ser array [{id,...}] (partida do admin) ou objeto
+      // {id:{...}} (partida enviada) — extrai os ids reais dos dois jeitos.
+      const participantes = new Set();
+      if (Array.isArray(m.stats)) {
+        m.stats.forEach((s) => s && s.id && participantes.add(s.id));
+      } else if (m.stats && typeof m.stats === "object") {
+        Object.keys(m.stats).forEach((id) => participantes.add(id));
+      }
+      entries.forEach((e) => {
+        if (e.from) participantes.add(e.from);
+        if (e.to) participantes.add(e.to);
+      });
+      const mamadoresNaPartida = new Set(entries.map((e) => e.from).filter(Boolean));
+      participantes.forEach((pid) => {
+        jogos[pid] = (jogos[pid] || 0) + 1;
+        if (mamadoresNaPartida.has(pid)) mamou[pid] = (mamou[pid] || 0) + 1;
+      });
     });
-    const mamadoresNaPartida = new Set(entries.map((e) => e.from).filter(Boolean));
-    participantes.forEach((pid) => {
-      jogos[pid] = (jogos[pid] || 0) + 1;
-      if (mamadoresNaPartida.has(pid)) mamou[pid] = (mamou[pid] || 0) + 1;
-    });
-  });
   const mapa = {};
   dados.players.forEach((p) => {
     if (jogos[p.id]) {
@@ -53,6 +56,8 @@ export function taxaMamada(seasonId = "todas") {
 //   rank      = quem mais MAMOU (deu) e pra quem
 //   rankLevou = quem mais FOI MAMADO (levou) e por quem
 function calcDeuLevou(matches) {
+  // Partidas onde todos bateram a meta não contam (0 mamadas).
+  const validas = matches.filter((m) => !todosBateram(m));
   const deu = {},
     levou = {},
     paraQuem = {},
@@ -64,7 +69,7 @@ function calcDeuLevou(matches) {
     paraQuem[p.id] = {};
     deQuem[p.id] = {};
   });
-  matches.forEach((m) => {
+  validas.forEach((m) => {
     (m.entries || []).forEach((e) => {
       if (deu[e.from] === undefined) return;
       deu[e.from]++;
@@ -91,7 +96,7 @@ function calcDeuLevou(matches) {
     rank: monta(deu, paraQuem),
     rankLevou: monta(levou, deQuem),
     totalMamadas,
-    nPartidas: matches.length,
+    nPartidas: validas.length,
   };
 }
 

@@ -126,6 +126,16 @@ export function bateuMeta(stat, meta = dados.meta) {
   return k >= meta.kills && d >= meta.damage;
 }
 
+// Uma partida NÃO CONTA quando TODOS os participantes (com números) bateram a
+// meta: ninguém mamou ninguém, então ela não entra no ranking/rate/contagem.
+// Partidas antigas sem números (só entries) sempre contam — elas têm mamada.
+export function todosBateram(m) {
+  const lista = statsList(m);
+  if (!lista.length) return false;
+  const meta = (m && m.meta) || dados.meta;
+  return lista.every((s) => bateuMeta(s, meta));
+}
+
 // As regras separam os ramos de `estado`: elenco é livre pra quem tem conta
 // (vínculo de card), partidas e meta são só do organizador. Por isso cada
 // gravação vai no seu ramo — um set() no nó inteiro seria recusado.
