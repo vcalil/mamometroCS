@@ -80,6 +80,22 @@ def delete_after_process() -> bool:
     return raw in ("1", "true", "yes", "on")
 
 
+def temp_cleanup_sec() -> int:
+    """Max age (seconds) of abandoned .dem in DEMOS_DIR/temp before delete.
+
+    The downloader stages downloads in /demos/temp and moves them to
+    /demos when complete. If it dies mid-download, the file stays in
+    temp forever. Any file in temp older than this threshold is removed.
+    Defaults to 3600 (1h). 0 disables cleanup.
+    """
+    raw = os.environ.get("TEMP_CLEANUP_SEC", "3600")
+    try:
+        n = int(raw)
+    except ValueError:
+        n = 3600
+    return n if n >= 0 else 3600
+
+
 def file_stability_sec() -> int:
     """Minimum age (seconds) of a .dem before the watcher will parse it.
 

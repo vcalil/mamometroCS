@@ -62,6 +62,78 @@ def save_match(fingerprint_id: str, match: dict[str, Any]) -> bool:
     return True
 
 
+def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
+    """Bridge `matches/{fp}` (demo bruto) -> `estado/matches` (formato do SPA).
+
+    O SPA lê `estado/matches` como array de:
+        {id, date, meta, stats: [{id, kills, damage}], entries: [{from, to}]}
+    onde `entries` = relacoes de mamada: cada LOSER (nao bateu a meta)
+    mamou cada WINNER (bateu meta: kills >= meta.kills E damage >= meta.damage).
+    `id` do SPA vem do `estado/players` (mapeia steamId -> id).
+
+    Idempotente: se `estado/matches` ja tem um entry com esse fingerprint_id,
+    nao duplica. Best-effort: loga e retorna False se Firebase nao configurado.
+    """
+    root = _init()
+    if root is None:
+        return False
+    try:
+        # 1) Mapeia steamId -> id do SPA (estado/players)
+        id_map: dict[str, str] = {}
+        players_node = root.child("estado/players").get() or []
+        if isinstance(players_node, list):
+            for p in players_node:
+                if isinstance(p, dict) and p.get("steamId") and p.get("id"):
+                    id_map[str(p["steamId"])] = str(p["id"])
+        elif isinstance(players_node, dict):
+            for _k, p in players_node.items():
+                if isinstance(p, dict) and p.get("steamId") and p.get("id"):
+                    id_map[str(p["steamId"])] = str(p["id"])
+
+        # 2) Meta (goal kills/damage) — default igual ao SPA
+        meta = root.child("estado/meta").get() or {"kills": 15, "damage": 1500}
+
+        # 3) Stats + winners/losers
+        stats_arr: list[dict[str, Any]] = []
+        winners: list[str] = []
+        losers: list[str] = []
+        for pl in match.get("players", []):
+            pid = id_map.get(str(pl.get("steamId")))
+            if not pid:
+                continue  # player nao esta no ranking/grupo — ignora
+            kills = int(pl.get("kills") or 0)
+            damage = int(pl.get("damage") or 0)
+            stats_arr.append({"id": pid, "kills": kills, "damage": damage})
+            if kills >= int(meta.get("kills") or 0) and damage >= int(meta.get("damage") or 0):
+                winners.append(pid)
+            else:
+                losers.append(pid)
+        entries = [{"from": l, "to": w} for l in losers for w in winners]
+
+        # 4) Dedup por fingerprint + append no array estado/matches
+        ref = root.child("estado/matches")
+        existing = ref.get() or []
+        if any(isinstance(x, dict) and x.get("id") == fingerprint_id for x in existing):
+            return False
+        new_entry = {
+            "id": fingerprint_id,
+            "date": match.get("date"),
+            "map": match.get("map"),
+            "meta": meta,
+            "stats": stats_arr,
+            "entries": entries,
+        }
+        existing.append(new_entry)
+        ref.set(existing)
+        return True
+    except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
+        print(
+            f"[demo_parser] WARN: publish_to_ranking falhou: {exc}",
+            file=sys.stderr,
+        )
+        return False
+
+
 def update_status(partial: dict[str, Any]) -> bool:
     """Merge `partial` into `pipeline/status`. Best-effort: silent if no Firebase."""
     root = _init()
