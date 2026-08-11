@@ -135,23 +135,17 @@ def _process_one(path: Path, delete_after: bool, min_members: int) -> None:
             "groupCount": count,
         }
         wrote = firebase.save_match(fp, match_doc)
-        if wrote:
-            print(f"[demo_parser] saved matches/{fp} (new)", file=sys.stderr)
-            # Ponte pro ranking: converte matches/{fp} -> estado/matches
-            # (formato do SPA com entries de mamada). Best-effort.
-            if firebase.publish_to_ranking(fp, match_doc):
-                print(
-                    f"[demo_parser] published to estado/matches (mamadas computadas)",
-                    file=sys.stderr,
-                )
-            else:
-                print(
-                    f"[demo_parser] estado/matches: skip (ja publicado ou sem Firebase)",
-                    file=sys.stderr,
-                )
-        else:
+        print(
+            f"[demo_parser] {'saved matches/' + fp + ' (new)' if wrote else 'matches/' + fp + ' já existia (skip save)'}",
+            file=sys.stderr,
+        )
+        # SEMPRE tenta publicar no ranking (é idempotente — dedup por id em
+        # estado/matches). Cobre o caso do save ter funcionado antes mas o
+        # publish ter falhado: senão a partida ficaria em matches/ e FORA do
+        # ranking pra sempre (nunca seria retentada).
+        if firebase.publish_to_ranking(fp, match_doc):
             print(
-                f"[demo_parser] matches/{fp} already existed (skip, idempotent)",
+                "[demo_parser] published to estado/matches (mamadas computadas)",
                 file=sys.stderr,
             )
     else:

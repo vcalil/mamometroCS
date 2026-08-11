@@ -26,12 +26,17 @@ from . import config as cfg
 from . import config_writer, firebase
 
 
-def _roster_signature(roster: dict[str, dict[str, Any]]) -> str:
-    """Stable hash of the downloader-relevant roster fields.
+def _roster_signature(
+    roster: dict[str, dict[str, Any]],
+    group: dict[str, dict[str, Any]] | None = None,
+) -> str:
+    """Stable hash do que importa pro downloader E pro filtro do parser.
 
-    Only the fields that go into authCodes[] are hashed — changes to
-    `name`, `lastMatchAt`, etc. don't trigger a rewrite. Sort by steamId
-    so the hash is order-independent.
+    Inclui os authCode/anchorCode do roster (onboardados → config.json do
+    downloader) E os steamIds do grupo (estado/players → roster.json do parser).
+    Assim uma mudança NO GRUPO (alguém se registra no ranking) também regenera —
+    senão o filtro de grupo do parser ficava defasado e podia descartar partida
+    à toa. Ordenado por steamId pra o hash ser independente de ordem.
     """
     relevant = []
     for steam_id in sorted(roster.keys()):
@@ -43,7 +48,10 @@ def _roster_signature(roster: dict[str, dict[str, Any]]) -> str:
                 str(entry.get("anchorCode") or ""),
             )
         )
-    payload = json.dumps(relevant, sort_keys=True, ensure_ascii=False)
+    grupo_sids = sorted(str(s) for s in (group or {}).keys())
+    payload = json.dumps(
+        {"roster": relevant, "group": grupo_sids}, sort_keys=True, ensure_ascii=False
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -87,7 +95,8 @@ def main(argv: list[str] | None = None) -> int:
     while not stop:
         try:
             roster = firebase.read_roster()
-            sig = _roster_signature(roster)
+            group = firebase.read_group()  # estado/players (grupo completo)
+            sig = _roster_signature(roster, group)
 
             if sig != last_sig:
                 if last_sig is None:
@@ -131,7 +140,8 @@ def main(argv: list[str] | None = None) -> int:
                 # nao), nao so' os onboarded. O roster/ (onboarded) e' o
                 # "veiculo" que permite puxar a demo; o estado/players e' o
                 # grupo completo. Entao aqui escrevemos a UNIAO dos dois.
-                group = firebase.read_group()  # estado/players (todos)
+                # `group` (estado/players) já foi lido no topo do loop (entra na
+                # assinatura). União roster/ (onboardados) ∪ estado/players.
                 merged: dict[str, dict[str, Any]] = {}
                 for sid, entry in roster.items():
                     merged[sid] = entry
