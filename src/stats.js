@@ -122,16 +122,32 @@ export function semanaAtual(hoje = new Date()) {
   return { inicio: ymd(seg), fim: ymd(dom) };
 }
 
-// Top1 de quem mais mamou e de quem mais foi mamado NA SEMANA atual.
-// Cada um é { id, name, avatar, total, ... } ou null (ninguém com total > 0).
+// Top1 de quem mais mamou e de quem mais foi mamado na semana. Usa a semana
+// atual (seg–dom); se ela não tem partida (ex.: bot parado), cai na semana da
+// última partida — pra os cards nunca ficarem vazios à toa. Retorna também o
+// range { inicio, fim, atual } da semana usada.
 export function destaquesSemana() {
-  const { inicio, fim } = semanaAtual();
-  const daSemana = dados.matches.filter(
-    (m) => m.date && m.date >= inicio && m.date <= fim
-  );
+  const validas = dados.matches.filter((m) => m.date && !semMamada(m));
+  const naSemana = (ini, fim) => validas.filter((m) => m.date >= ini && m.date <= fim);
+
+  let { inicio, fim } = semanaAtual();
+  let daSemana = naSemana(inicio, fim);
+  let atual = true;
+  if (!daSemana.length && validas.length) {
+    const ult = validas.reduce((mx, m) => (m.date > mx ? m.date : mx), "");
+    const [y, mo, da] = ult.split("-").map(Number);
+    ({ inicio, fim } = semanaAtual(new Date(y, mo - 1, da)));
+    daSemana = naSemana(inicio, fim);
+    atual = false;
+  }
+
   const { rank, rankLevou } = calcDeuLevou(daSemana);
   const top = (arr) => (arr[0] && arr[0].total > 0 ? arr[0] : null);
-  return { topMamou: top(rank), topMamado: top(rankLevou) };
+  return {
+    topMamou: top(rank),
+    topMamado: top(rankLevou),
+    semana: { inicio, fim, atual },
+  };
 }
 
 // Foragido: jogador registrado que já jogou ≥1 vez com a última aparição mais

@@ -230,46 +230,70 @@ function renderBotRun() {
   el.textContent = `· 🤖 última partida ${ult.split("-").reverse().join("/")} (${quando})`;
 }
 
-// Um card de destaque (avatar + rótulo + valor) ou o estado vazio.
-function cardDestaque(classe, rotulo, id, valor, vazio) {
+// Um card de destaque (rótulo + subtítulo + avatar em anel + valor em pill),
+// ou o estado vazio. `medalha` = mostra a coroa (só nos vencedores da semana).
+function cardDestaque(classe, rotulo, sub, id, valor, vazio, medalha) {
+  const cab = `<div class="d-rot">${rotulo}</div><div class="d-sub">${sub || "&nbsp;"}</div>`;
   if (!id) {
-    return `<div class="destaque ${classe}"><div class="d-rot">${rotulo}</div><div class="d-vazio">${vazio}</div></div>`;
+    return `<div class="destaque ${classe}">${cab}<div class="d-vazio">${vazio}</div></div>`;
   }
+  const av = avatarDe(id);
+  const avHtml = av ? avImg(av, "d-av") : `<div class="d-av d-av-ph">👤</div>`;
   return `<div class="destaque ${classe}">
-      <div class="d-rot">${rotulo}</div>
-      <div class="d-corpo">${avImg(avatarDe(id), "d-av")}<div class="d-info"><div class="d-nome">${nomeApelidoHtml(
-        id
-      )}</div><div class="d-val">${valor}</div></div></div>
+      ${cab}
+      <div class="d-corpo">
+        <div class="d-avwrap ${medalha ? "coroa" : ""}">${avHtml}</div>
+        <div class="d-info"><div class="d-nome">${nomeApelidoHtml(
+          id
+        )}</div><span class="d-val">${valor}</span></div>
+      </div>
     </div>`;
 }
 
+// Formata um range de semana YYYY-MM-DD → "DD–DD/MM" (ou "DD/MM–DD/MM" se muda o mês).
+function fmtRange(a, b) {
+  const dm = (s) => `${s.slice(8)}/${s.slice(5, 7)}`;
+  return a.slice(5, 7) === b.slice(5, 7) ? `${a.slice(8)}–${dm(b)}` : `${dm(a)}–${dm(b)}`;
+}
+
 // Fileira de 3 destaques: mamou mais / botou pra mamar (foi mamado) na semana +
-// o foragido (mais tempo sem jogar). Semana e foragido independem da season.
+// o foragido (mais tempo sem jogar). Semana/foragido independem da season.
 function renderDestaques() {
   const el = document.getElementById("destaques");
   if (!el) return;
-  const { topMamou, topMamado } = destaquesSemana();
+  const { topMamou, topMamado, semana } = destaquesSemana();
   const forg = foragido();
+  const subSemana = semana
+    ? semana.atual
+      ? "esta semana"
+      : `semana ${fmtRange(semana.inicio, semana.fim)}`
+    : "";
   el.innerHTML =
     cardDestaque(
       "d-mamou",
-      "🍼 Mamou mais na semana",
+      "🍼 Mamou mais",
+      subSemana,
       topMamou && topMamou.id,
       topMamou ? `${topMamou.total} mamada(s)` : "",
-      "Ninguém mamou essa semana ainda"
+      "Ninguém mamou no período",
+      true
     ) +
     cardDestaque(
       "d-mamado",
-      "🎯 Botou pra mamar na semana",
+      "🎯 Botou pra mamar",
+      subSemana,
       topMamado && topMamado.id,
       topMamado ? `${topMamado.total} recebida(s)` : "",
-      "Ninguém foi mamado essa semana"
+      "Ninguém foi mamado no período",
+      true
     ) +
     cardDestaque(
       "d-foragido",
       "🕵 Foragido",
+      "sumido faz tempo",
       forg && forg.id,
       forg ? `${forg.diasSemJogar} dia(s) sem jogar` : "",
-      "Todo mundo jogou recentemente"
+      "Todo mundo jogou recente",
+      false
     );
 }
