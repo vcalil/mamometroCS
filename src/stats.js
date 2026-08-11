@@ -1,4 +1,4 @@
-import { dados, statsList, todosBateram } from "./state.js";
+import { dados, statsList, semMamada } from "./state.js";
 import { partidasDaSeason } from "./seasons.js";
 
 // ---- Taxa de mamada (rating de cada jogador) ------------------------------
@@ -15,9 +15,9 @@ import { partidasDaSeason } from "./seasons.js";
 export function taxaMamada(seasonId = "todas") {
   const jogos = {};
   const mamou = {};
-  // Partidas onde todos bateram a meta não contam (não diluem o rate).
+  // Partidas sem nenhuma mamada não contam (não diluem o rate).
   partidasDaSeason(seasonId)
-    .filter((m) => !todosBateram(m))
+    .filter((m) => !semMamada(m))
     .forEach((m) => {
       const entries = m.entries || [];
       // `stats` pode ser array [{id,...}] (partida do admin) ou objeto
@@ -56,8 +56,8 @@ export function taxaMamada(seasonId = "todas") {
 //   rank      = quem mais MAMOU (deu) e pra quem
 //   rankLevou = quem mais FOI MAMADO (levou) e por quem
 function calcDeuLevou(matches) {
-  // Partidas onde todos bateram a meta não contam (0 mamadas).
-  const validas = matches.filter((m) => !todosBateram(m));
+  // Partidas sem nenhuma mamada não contam (0 mamadas).
+  const validas = matches.filter((m) => !semMamada(m));
   const deu = {},
     levou = {},
     paraQuem = {},

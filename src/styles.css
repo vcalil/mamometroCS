@@ -1581,3 +1581,10 @@ select:focus {
 .hist-jog.mamou .hj-selo {
   color: var(--coral);
 }
+
+/* Última partida do bot, ao lado do "ao vivo" */
+.bot-run {
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}

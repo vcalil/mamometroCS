@@ -61,6 +61,7 @@ export function render() {
   document.getElementById("st-mamadas").textContent = totalMamadas;
   document.getElementById("st-jogadores").textContent = dados.players.length;
   renderDestaques();
+  renderBotRun();
   const alvo = document.getElementById("conteudo");
 
   if (dados.players.length === 0) {
@@ -205,6 +206,28 @@ export function render() {
 
 export function toggleLinha(el) {
   el.parentElement.classList.toggle("aberta");
+}
+
+// Mostra ao lado do "ao vivo" a última partida que o bot registrou (proxy de
+// "quando o bot rodou" — é a última partida capturada, o mais próximo que o
+// front sabe sem um heartbeat do pipeline).
+function renderBotRun() {
+  const el = document.getElementById("bot-run");
+  if (!el) return;
+  const ult = (dados.matches || []).reduce(
+    (mx, m) => (m.date && m.date > mx ? m.date : mx),
+    ""
+  );
+  if (!ult) {
+    el.textContent = "";
+    return;
+  }
+  const [y, mo, da] = ult.split("-").map(Number);
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const dias = Math.round((hoje - new Date(y, mo - 1, da)) / 86400000);
+  const quando = dias <= 0 ? "hoje" : dias === 1 ? "ontem" : `há ${dias} dias`;
+  el.textContent = `· 🤖 última partida ${ult.split("-").reverse().join("/")} (${quando})`;
 }
 
 // Um card de destaque (avatar + rótulo + valor) ou o estado vazio.

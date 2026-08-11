@@ -126,14 +126,11 @@ export function bateuMeta(stat, meta = dados.meta) {
   return k >= meta.kills && d >= meta.damage;
 }
 
-// Uma partida NÃO CONTA quando TODOS os participantes (com números) bateram a
-// meta: ninguém mamou ninguém, então ela não entra no ranking/rate/contagem.
-// Partidas antigas sem números (só entries) sempre contam — elas têm mamada.
-export function todosBateram(m) {
-  const lista = statsList(m);
-  if (!lista.length) return false;
-  const meta = (m && m.meta) || dados.meta;
-  return lista.every((s) => bateuMeta(s, meta));
+// Uma partida NÃO CONTA quando não teve NENHUMA mamada (0 mamadas): ou todos
+// bateram a meta, ou ninguém bateu — nos dois casos ninguém mamou ninguém.
+// Não entra no ranking, na taxa, na contagem de partidas nem no histórico.
+export function semMamada(m) {
+  return !((m && m.entries) || []).length;
 }
 
 // As regras separam os ramos de `estado`: elenco é livre pra quem tem conta
