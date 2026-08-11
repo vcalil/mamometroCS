@@ -181,6 +181,27 @@ def build_config(
             preserved[k] = v
 
     # --- authCodes: rebuilt from roster --------------------------------------
+    # Preserva o oldestShareCode que o downloader JÁ AVANÇOU. O cs-demo-downloader
+    # grava de volta no config.json o último share code processado por conta — é
+    # assim que ele guarda o progresso entre execuções. Se reescrevermos sempre
+    # com o anchorCode do onboarding (estático, semanas atrás), a cada regeneração
+    # o bot é ARRASTADO de volta pro início e re-anda/re-pede toda a história —
+    # queimando a cota (apertada) de requests ao Game Coordinator em demos velhas
+    # (já expiradas pela retenção da Valve) e nunca chegando nas partidas novas.
+    # Então: conta já presente no config → mantém o oldestShareCode dela (o
+    # avançado); conta nova (primeiro onboard) → usa o anchorCode do roster como
+    # piso. Pra forçar um reset, o operador apaga a entry (ou o config.json) e a
+    # regeneração parte do anchor de novo.
+    existing_oldest: dict[str, str] = {}
+    existing_authcodes = existing.get("authCodes")
+    if isinstance(existing_authcodes, list):
+        for ac in existing_authcodes:
+            if isinstance(ac, dict):
+                sid = ac.get("steamId64")
+                osc = ac.get("oldestShareCode")
+                if isinstance(sid, str) and isinstance(osc, str) and osc:
+                    existing_oldest[sid] = osc
+
     auth_codes: list[dict[str, str]] = []
     warnings: list[str] = []
     for steam_id in sorted(roster.keys()):
@@ -191,7 +212,11 @@ def build_config(
                 f"missing authCode or anchorCode (not yet onboarded)"
             )
             continue
-        auth_codes.append(entry.to_auth_code_entry())
+        ac_entry = entry.to_auth_code_entry()
+        preserved_osc = existing_oldest.get(entry.steam_id)
+        if preserved_osc:
+            ac_entry["oldestShareCode"] = preserved_osc
+        auth_codes.append(ac_entry)
 
     config: dict[str, Any] = {
         "authCodeLogin": login,
