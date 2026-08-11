@@ -369,6 +369,25 @@ def _cmd_watch() -> int:
     return 0
 
 
+def _cmd_backfill_ranks() -> int:
+    """Preenche o rank dos cards a partir das partidas já salvas em matches/."""
+    if not config.has_firebase():
+        print(
+            "[demo_parser] ERROR: Firebase não configurado "
+            "(set FIREBASE_SA_PATH e FIREBASE_DATABASE_URL)",
+            file=sys.stderr,
+        )
+        return 2
+    from . import firebase  # type: ignore[attr-defined]
+
+    n = firebase.backfill_ranks()
+    print(
+        f"[demo_parser] backfill-ranks: {n} card(s) atualizado(s) com rank Premier.",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="demo_parser",
@@ -393,11 +412,21 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
 
+    sub.add_parser(
+        "backfill-ranks",
+        help=(
+            "One-shot: preenche o CS Rating (Premier) dos cards em estado/players "
+            "a partir das partidas já em matches/ (rank da partida mais recente)."
+        ),
+    )
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         return _cmd_demo(args.path)
     if args.command == "watch":
         return _cmd_watch()
+    if args.command == "backfill-ranks":
+        return _cmd_backfill_ranks()
     parser.print_help()
     return 2
 

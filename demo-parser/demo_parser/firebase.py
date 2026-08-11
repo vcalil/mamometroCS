@@ -105,65 +105,93 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
         return False
 
 
-def atualizar_ranks(match: dict[str, Any]) -> int:
-    """Propaga o CS Rating (Premier) do demo pros cards em estado/players.
+def _aplicar_ranks(rank_por_sid: dict[str, tuple[str, int, int]]) -> int:
+    """Grava csRating/rankType/rankDate nos cards de estado/players a partir de
+    {steamId: (data, csRating, rankType)}. Só sobrescreve se a `data` for >= à
+    rankDate já no card (mantém sempre o rank da partida MAIS RECENTE). Preserva
+    o resto do card e a forma list|dict. Read-modify-write. Retorna quantos mudaram."""
+    root = ensure_db()
+    if root is None or not rank_por_sid:
+        return 0
+    ref = root.child("estado/players")
+    players = ref.get()
+    if not players:
+        return 0
+    mudou = 0
 
-    Só atualiza quando rankType == 11 (Premier) e csRating > 0 — mesma regra do
-    fluxo manual do SPA (enviar.js). Read-modify-write: lê o nó, muda só esses
-    dois campos dos jogadores presentes na partida e grava de volta (preserva
-    todo o resto do card e a forma list|dict). Retorna quantos cards mudaram.
-    Best-effort: loga e retorna 0 em erro.
-    """
+    def _upd(card: Any) -> Any:
+        nonlocal mudou
+        if not isinstance(card, dict):
+            return card
+        sid = str(card.get("steamId") or "")
+        novo = rank_por_sid.get(sid)  # (data, cr, rt)
+        if novo and novo[0] >= str(card.get("rankDate") or ""):
+            if (
+                card.get("csRating") != novo[1]
+                or card.get("rankType") != novo[2]
+                or str(card.get("rankDate") or "") != novo[0]
+            ):
+                card = dict(card)
+                card["rankDate"], card["csRating"], card["rankType"] = novo
+                mudou += 1
+        return card
+
+    if isinstance(players, list):
+        players = [_upd(c) for c in players]
+    elif isinstance(players, dict):
+        players = {k: _upd(v) for k, v in players.items()}
+    else:
+        return 0
+    if mudou:
+        ref.set(players)
+    return mudou
+
+
+def _ranks_premier(match: dict[str, Any]) -> dict[str, tuple[str, int, int]]:
+    """{steamId: (data, csRating, rankType)} dos jogadores Premier (rankType 11,
+    csRating > 0) de uma partida."""
+    data = str(match.get("date") or "")
+    out: dict[str, tuple[str, int, int]] = {}
+    for pl in match.get("players", []) or []:
+        sid = str(pl.get("steamId") or "")
+        rt = int(pl.get("rankType") or 0)
+        cr = int(pl.get("csRating") or 0)
+        if sid and rt == 11 and cr > 0:
+            out[sid] = (data, cr, rt)
+    return out
+
+
+def atualizar_ranks(match: dict[str, Any]) -> int:
+    """Propaga o CS Rating (Premier) desta partida pros cards em estado/players.
+    Cada card fica com o rank da SUA partida mais recente (guarda por data em
+    rankDate). Best-effort: loga e retorna 0 em erro."""
+    try:
+        return _aplicar_ranks(_ranks_premier(match))
+    except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
+        print(f"[demo_parser] WARN: atualizar_ranks falhou: {exc}", file=sys.stderr)
+        return 0
+
+
+def backfill_ranks() -> int:
+    """Backfill: varre TODAS as partidas em matches/ e preenche o rank dos cards
+    a partir do histórico já capturado, sem esperar partida nova. Cada card fica
+    com o rank Premier da sua partida mais recente. Rodar uma vez:
+    `python -m demo_parser backfill-ranks`. Retorna quantos cards mudaram."""
     root = ensure_db()
     if root is None:
-        return 0
-    try:
-        # rank por steamId — só Premier (rankType 11) com rating > 0.
-        rank_por_sid: dict[str, tuple[int, int]] = {}
-        for pl in match.get("players", []):
-            sid = str(pl.get("steamId") or "")
-            rt = int(pl.get("rankType") or 0)
-            cr = int(pl.get("csRating") or 0)
-            if sid and rt == 11 and cr > 0:
-                rank_por_sid[sid] = (cr, rt)
-        if not rank_por_sid:
-            return 0
-
-        ref = root.child("estado/players")
-        players = ref.get()
-        if not players:
-            return 0
-
-        mudou = 0
-
-        def _upd(card: Any) -> Any:
-            nonlocal mudou
-            if not isinstance(card, dict):
-                return card
-            sid = str(card.get("steamId") or "")
-            novo = rank_por_sid.get(sid)
-            if novo and (card.get("csRating") != novo[0] or card.get("rankType") != novo[1]):
-                card = dict(card)
-                card["csRating"], card["rankType"] = novo
-                mudou += 1
-            return card
-
-        if isinstance(players, list):
-            players = [_upd(c) for c in players]
-        elif isinstance(players, dict):
-            players = {k: _upd(v) for k, v in players.items()}
-        else:
-            return 0
-
-        if mudou:
-            ref.set(players)
-        return mudou
-    except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
-        print(
-            f"[demo_parser] WARN: atualizar_ranks falhou: {exc}",
-            file=sys.stderr,
+        raise RuntimeError(
+            "Firebase não configurado. Set FIREBASE_SA_PATH e FIREBASE_DATABASE_URL."
         )
-        return 0
+    matches = root.child("matches").get() or {}
+    items = list(matches.values()) if isinstance(matches, dict) else matches
+    ult: dict[str, tuple[str, int, int]] = {}
+    for m in items:
+        if not isinstance(m, dict):
+            continue
+        for sid, v in _ranks_premier(m).items():
+            if sid not in ult or v[0] >= ult[sid][0]:
+                ult[sid] = v
+    return _aplicar_ranks(ult)
 
 
 def update_status(partial: dict[str, Any]) -> bool:
