@@ -1434,16 +1434,49 @@ select:focus {
 }
 
 /* Selo do CS Rating (Premier) ao lado do nome */
+/* Selo do CS Rating (Premier), estilo o do jogo: banner levemente inclinado,
+   com cor por faixa de rating (t0 cinza … t6 dourado). */
 .csrank {
-  font-size: 0.8em;
+  display: inline-block;
+  font-family: "Space Mono", monospace;
+  font-size: 0.72rem;
   font-weight: 700;
-  color: #7ad0ff;
-  background: rgba(122, 208, 255, 0.12);
-  border: 1px solid rgba(122, 208, 255, 0.3);
-  border-radius: 6px;
-  padding: 1px 6px;
-  white-space: nowrap;
+  letter-spacing: 0.5px;
+  color: #fff;
+  padding: 2px 9px 2px 11px;
   vertical-align: middle;
+  white-space: nowrap;
+  clip-path: polygon(7px 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+}
+.csrank::before {
+  content: "★";
+  font-size: 0.68em;
+  margin-right: 4px;
+  opacity: 0.85;
+}
+.csrank.t0 {
+  background: linear-gradient(180deg, #a7adb4, #767c83);
+}
+.csrank.t1 {
+  background: linear-gradient(180deg, #74bfe6, #4592c2);
+}
+.csrank.t2 {
+  background: linear-gradient(180deg, #5c7ce0, #3a54bd);
+}
+.csrank.t3 {
+  background: linear-gradient(180deg, #9f5cff, #7331d8);
+}
+.csrank.t4 {
+  background: linear-gradient(180deg, #e455e0, #b62cc2);
+}
+.csrank.t5 {
+  background: linear-gradient(180deg, #f25858, #d02a2a);
+}
+.csrank.t6 {
+  background: linear-gradient(180deg, #ffdd55, #f5a623);
+  color: #3a2500;
+  text-shadow: none;
 }
 
 /* ---- Card "Partidas" clicável (abre o histórico) ---- */
