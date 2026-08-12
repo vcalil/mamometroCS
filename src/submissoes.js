@@ -9,7 +9,7 @@
 // `admins`. A interface só reflete o que as regras já impõem.
 import { ref, push, remove, set } from "firebase/database";
 import { db } from "./firebase.js";
-import { dados, salvarPartidaDb, uid } from "./state.js";
+import { dados, salvarPartidas, uid } from "./state.js";
 
 let fila = [];
 
@@ -43,7 +43,7 @@ export function enviarSubmissao({ date, entries, stats, map, autor, origem, vali
 export async function aprovarSubmissao(key, aprovador) {
   const s = fila.find((x) => x.key === key);
   if (!s) return;
-  const nova = {
+  dados.matches.push({
     id: uid(),
     date: s.date,
     entries: s.entries || [],
@@ -53,9 +53,8 @@ export async function aprovarSubmissao(key, aprovador) {
     enviadoEm: s.ts || null,
     aprovadoPor: aprovador || null,
     aprovadoEm: Date.now(),
-  };
-  dados.matches.push(nova);
-  await salvarPartidaDb(nova);
+  });
+  await salvarPartidas();
   await remove(ref(db, "submissoes/" + key));
 }
 

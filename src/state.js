@@ -1,4 +1,4 @@
-import { ref, set, remove, update } from "firebase/database";
+import { ref, set } from "firebase/database";
 import { db } from "./firebase.js";
 
 // Meta padrão: matar 15 e causar 1500 de dano. O admin pode alterar.
@@ -35,20 +35,10 @@ export function resetarCarga() {
   carregado = false;
 }
 
-// estado/matches virou objeto keyed por id `{id: match}` (antes era array).
-// A escrita por-chave evita a corrida que apagava partidas. Aqui normalizamos
-// pra array em memória (o resto do app usa array), aceitando os dois formatos.
-export function matchesParaArray(m) {
-  if (!m) return [];
-  if (Array.isArray(m)) return m.filter(Boolean);
-  if (typeof m === "object") return Object.values(m).filter(Boolean);
-  return [];
-}
-
 // Substitui o conteúdo a partir de um snapshot do Firebase (mutação in place).
 export function aplicarSnapshot(v) {
   dados.players = (v && v.players) || [];
-  dados.matches = matchesParaArray(v && v.matches);
+  dados.matches = (v && v.matches) || [];
   const m = v && v.meta;
   dados.meta =
     m && Number.isFinite(m.kills) && Number.isFinite(m.damage)
@@ -154,34 +144,9 @@ export function salvarJogadores() {
   if (!carregado) return Promise.resolve();
   if (db) return set(ref(db, "estado/players"), dados.players);
 }
-
-// ESCRITA POR-CHAVE de estado/matches (nunca sobrescreve o nó inteiro). O
-// padrão antigo `set(estado/matches, dados.matches)` reescrevia o array todo e,
-// concorrendo com o bot (que grava direto), causava "lost update" — partida
-// que aparecia no site sumia do banco. Cada partida agora é um nó `estado/
-// matches/{id}` isolado; o bot grava `estado/matches/{fp}` do mesmo jeito.
-
-// Grava/atualiza UMA partida (por id). Usar ao aprovar/registrar/editar.
-export function salvarPartidaDb(m) {
-  if (!carregado || !m || !m.id) return Promise.resolve();
-  if (db) return set(ref(db, "estado/matches/" + m.id), m);
-  return Promise.resolve();
-}
-// Remove UMA partida (por id).
-export function removerPartidaDb(id) {
-  if (!id) return Promise.resolve();
-  if (db) return remove(ref(db, "estado/matches/" + id));
-  return Promise.resolve();
-}
-// Atualiza VÁRIAS partidas de uma vez (multi-path update) — ex.: mesclar
-// jogador, que reescreve entries/stats de várias. Não toca em chaves de fora
-// do patch, então não colide com o que o bot acabou de inserir.
-export function salvarPartidasMuitas(lista) {
+export function salvarPartidas() {
   if (!carregado) return Promise.resolve();
-  const patch = {};
-  for (const m of lista || []) if (m && m.id) patch[m.id] = m;
-  if (db && Object.keys(patch).length) return update(ref(db, "estado/matches"), patch);
-  return Promise.resolve();
+  if (db) return set(ref(db, "estado/matches"), dados.matches);
 }
 export function salvarMeta() {
   if (db) return set(ref(db, "estado/meta"), dados.meta);

@@ -6,7 +6,7 @@ import {
   bateuMeta,
   acharJogadorPorStat,
   uid,
-  salvarPartidaDb,
+  salvarPartidas,
   salvarJogadores,
   acharDuplicata,
 } from "../state.js";
@@ -268,7 +268,7 @@ export async function confirmarEnvio() {
   try {
     if (autoAprovar) {
       btn.textContent = "Registrando...";
-      const nova = {
+      dados.matches.push({
         id: uid(),
         date: dataPartida,
         entries,
@@ -280,9 +280,8 @@ export async function confirmarEnvio() {
         aprovadoPor: { steamId: sid || "", nome: nomeAutor },
         aprovadoEm: Date.now(),
         autoAprovada: true,
-      };
-      dados.matches.push(nova);
-      await salvarPartidaDb(nova);
+      });
+      await salvarPartidas();
       fecharEnviar();
       alert("Partida registrada direto no ranking (lida da demo).");
       return;

@@ -30,84 +30,72 @@ def save_match(fingerprint_id: str, match: dict[str, Any]) -> bool:
     return True
 
 
-def _id_map_and_meta(root: Any) -> tuple[dict[str, str], dict[str, Any]]:
-    """Lê o mapa steamId -> id do SPA (estado/players) e a meta (estado/meta).
-    Aceita players como list ou dict (coerção do RTDB)."""
-    id_map: dict[str, str] = {}
-    players_node = root.child("estado/players").get() or []
-    if isinstance(players_node, dict):
-        iter_players: Any = players_node.values()
-    elif isinstance(players_node, list):
-        iter_players = players_node
-    else:
-        iter_players = []
-    for p in iter_players:
-        if isinstance(p, dict) and p.get("steamId") and p.get("id"):
-            id_map[str(p["steamId"])] = str(p["id"])
-    meta = root.child("estado/meta").get() or {"kills": 15, "damage": 1500}
-    return id_map, meta
-
-
-def _bridge_entry(
-    fingerprint_id: str,
-    match: dict[str, Any],
-    id_map: dict[str, str],
-    meta: dict[str, Any],
-) -> dict[str, Any]:
-    """Converte um match bruto (matches/{fp}) no formato do SPA:
-        {id, date, map, meta, stats:[{id,kills,damage}], entries:[{from,to}]}
-    `entries` = mamadas: cada LOSER (não bateu a meta) mamou cada WINNER
-    (bateu: kills >= meta.kills E damage >= meta.damage). `id` vem do id_map."""
-    stats_arr: list[dict[str, Any]] = []
-    winners: list[str] = []
-    losers: list[str] = []
-    for pl in match.get("players", []):
-        pid = id_map.get(str(pl.get("steamId")))
-        if not pid:
-            continue  # player não está no ranking/grupo — ignora
-        kills = int(pl.get("kills") or 0)
-        damage = int(pl.get("damage") or 0)
-        stats_arr.append({"id": pid, "kills": kills, "damage": damage})
-        if kills >= int(meta.get("kills") or 0) and damage >= int(meta.get("damage") or 0):
-            winners.append(pid)
-        else:
-            losers.append(pid)
-    entries = [{"from": l, "to": w} for l in losers for w in winners]
-    return {
-        "id": fingerprint_id,
-        "date": match.get("date"),
-        "map": match.get("map"),
-        "meta": meta,
-        "stats": stats_arr,
-        "entries": entries,
-    }
-
-
 def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
-    """Bridge `matches/{fp}` (demo bruto) -> `estado/matches/{fp}` (formato SPA).
+    """Bridge `matches/{fp}` (demo bruto) -> `estado/matches` (formato do SPA).
 
-    ESCRITA POR-CHAVE: grava só `estado/matches/{fp}`, NUNCA o nó inteiro. Isso
-    mata a corrida de "lost update" do padrão antigo (ler array todo -> append
-    -> gravar array todo): quando dois writers concorriam (duas execuções do
-    parser, ou parser + SPA), quem lia o array mais velho gravava por cima e
-    APAGAVA partidas. Por chave, cada partida é um nó isolado — não colidem.
+    O SPA lê `estado/matches` como array de:
+        {id, date, meta, stats: [{id, kills, damage}], entries: [{from, to}]}
+    onde `entries` = relacoes de mamada: cada LOSER (nao bateu a meta)
+    mamou cada WINNER (bateu meta: kills >= meta.kills E damage >= meta.damage).
+    `id` do SPA vem do `estado/players` (mapeia steamId -> id).
 
-    Idempotente: se já existe entry com esse id em estado/matches (array legado
-    OU objeto novo), não republica. Best-effort: retorna False sem Firebase.
+    Idempotente: se `estado/matches` ja tem um entry com esse fingerprint_id,
+    nao duplica. Best-effort: loga e retorna False se Firebase nao configurado.
     """
     root = ensure_db()
     if root is None:
         return False
     try:
-        node = root.child("estado/matches")
-        existing = node.get() or {}
-        vals = existing.values() if isinstance(existing, dict) else existing
-        if any(isinstance(x, dict) and x.get("id") == fingerprint_id for x in vals):
+        # 1) Mapeia steamId -> id do SPA (estado/players)
+        id_map: dict[str, str] = {}
+        players_node = root.child("estado/players").get() or []
+        if isinstance(players_node, list):
+            for p in players_node:
+                if isinstance(p, dict) and p.get("steamId") and p.get("id"):
+                    id_map[str(p["steamId"])] = str(p["id"])
+        elif isinstance(players_node, dict):
+            for _k, p in players_node.items():
+                if isinstance(p, dict) and p.get("steamId") and p.get("id"):
+                    id_map[str(p["steamId"])] = str(p["id"])
+
+        # 2) Meta (goal kills/damage) — default igual ao SPA
+        meta = root.child("estado/meta").get() or {"kills": 15, "damage": 1500}
+
+        # 3) Stats + winners/losers
+        stats_arr: list[dict[str, Any]] = []
+        winners: list[str] = []
+        losers: list[str] = []
+        for pl in match.get("players", []):
+            pid = id_map.get(str(pl.get("steamId")))
+            if not pid:
+                continue  # player nao esta no ranking/grupo — ignora
+            kills = int(pl.get("kills") or 0)
+            damage = int(pl.get("damage") or 0)
+            stats_arr.append({"id": pid, "kills": kills, "damage": damage})
+            if kills >= int(meta.get("kills") or 0) and damage >= int(meta.get("damage") or 0):
+                winners.append(pid)
+            else:
+                losers.append(pid)
+        entries = [{"from": l, "to": w} for l in losers for w in winners]
+
+        # 4) Dedup por fingerprint + append no array estado/matches
+        ref = root.child("estado/matches")
+        existing = ref.get() or []
+        if any(isinstance(x, dict) and x.get("id") == fingerprint_id for x in existing):
             return False
-        # Partida nova: propaga o rank (CS Rating Premier) pros cards.
+        # Partida nova: propaga o rank (CS Rating Premier) dos jogadores pros
+        # cards em estado/players, pra o selo de rank aparecer no ranking.
         atualizar_ranks(match)
-        id_map, meta = _id_map_and_meta(root)
-        node.child(fingerprint_id).set(_bridge_entry(fingerprint_id, match, id_map, meta))
+        new_entry = {
+            "id": fingerprint_id,
+            "date": match.get("date"),
+            "map": match.get("map"),
+            "meta": meta,
+            "stats": stats_arr,
+            "entries": entries,
+        }
+        existing.append(new_entry)
+        ref.set(existing)
         return True
     except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
         print(
@@ -115,56 +103,6 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
             file=sys.stderr,
         )
         return False
-
-
-def rebuild_ranking() -> dict[str, int]:
-    """Recupera + migra `estado/matches`. Varre TODAS as partidas em `matches/`
-    (fonte da verdade, gravada por-chave = à prova de corrida) e reescreve
-    `estado/matches` como OBJETO keyed por id `{id: entry}`. Preserva partidas
-    entradas na mão pelo organizador (têm id, mas não estão em matches/).
-
-    Roda UMA vez pra: (1) recuperar as partidas que a corrida do padrão antigo
-    comeu, e (2) converter o array legado em objeto (a partir daí a escrita é
-    toda por-chave e não há mais corrida). Retorna contadores."""
-    root = ensure_db()
-    if root is None:
-        raise RuntimeError(
-            "Firebase não configurado. Set FIREBASE_SA_PATH e FIREBASE_DATABASE_URL."
-        )
-
-    node = root.child("estado/matches")
-    # 1) Estado atual (array legado OU objeto), indexado por id — preserva as
-    #    partidas manuais (id de uid(), que não existem em matches/).
-    atual = node.get() or {}
-    atual_vals = atual.values() if isinstance(atual, dict) else atual
-    keyed: dict[str, Any] = {}
-    for e in atual_vals:
-        if isinstance(e, dict) and e.get("id"):
-            keyed[str(e["id"])] = e
-    present_before = set(keyed.keys())
-
-    # 2) Rebridge de TODAS as partidas do bot (matches/), a fonte da verdade.
-    id_map, meta = _id_map_and_meta(root)
-    matches = root.child("matches").get() or {}
-    pairs = matches.items() if isinstance(matches, dict) else enumerate(matches)
-    bot_ids: set[str] = set()
-    for fp, m in pairs:
-        if not isinstance(m, dict):
-            continue
-        fp = str(fp)
-        keyed[fp] = _bridge_entry(fp, m, id_map, meta)
-        bot_ids.add(fp)
-
-    # 3) Grava o objeto keyed de uma vez (migração array -> objeto).
-    node.set(keyed)
-
-    recovered = len([fp for fp in bot_ids if fp not in present_before])
-    return {
-        "recovered": recovered,
-        "bot_matches": len(bot_ids),
-        "manual_kept": len(keyed) - len(bot_ids),
-        "total": len(keyed),
-    }
 
 
 def _aplicar_ranks(rank_por_sid: dict[str, tuple[str, int, int]]) -> int:
