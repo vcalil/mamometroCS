@@ -382,6 +382,28 @@ def _cmd_backfill_ranks() -> int:
     return 0
 
 
+def _cmd_backfill_matches() -> int:
+    """Recupera estado/matches a partir de matches/ (fonte da verdade) e migra
+    o array legado pra objeto keyed por id. Roda uma vez após o deploy."""
+    if not config.has_firebase():
+        print(
+            "[demo_parser] ERROR: Firebase não configurado "
+            "(set FIREBASE_SA_PATH e FIREBASE_DATABASE_URL)",
+            file=sys.stderr,
+        )
+        return 2
+    from . import firebase  # type: ignore[attr-defined]
+
+    r = firebase.rebuild_ranking()
+    print(
+        f"[demo_parser] backfill-matches: {r['total']} partida(s) em estado/matches "
+        f"({r['recovered']} recuperada(s), {r['bot_matches']} do bot, "
+        f"{r['manual_kept']} manual/organizador). estado/matches agora é objeto keyed.",
+        file=sys.stderr,
+    )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="demo_parser",
@@ -414,6 +436,15 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
 
+    sub.add_parser(
+        "backfill-matches",
+        help=(
+            "One-shot: recupera estado/matches a partir de matches/ (fonte da "
+            "verdade) e migra o array legado pra objeto keyed por id. Rodar uma "
+            "vez após o deploy da escrita por-chave."
+        ),
+    )
+
     args = parser.parse_args(argv)
     if args.command == "demo":
         return _cmd_demo(args.path)
@@ -421,6 +452,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_watch()
     if args.command == "backfill-ranks":
         return _cmd_backfill_ranks()
+    if args.command == "backfill-matches":
+        return _cmd_backfill_matches()
     parser.print_help()
     return 2
 

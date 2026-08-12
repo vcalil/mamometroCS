@@ -1,7 +1,9 @@
 import {
   dados,
   salvarJogadores,
-  salvarPartidas,
+  salvarPartidaDb,
+  removerPartidaDb,
+  salvarPartidasMuitas,
   salvarMeta as salvarMetaDb,
   uid,
   nomeDe,
@@ -219,7 +221,10 @@ export function mesclarJogadores() {
 
   dados.players = dados.players.filter((p) => p.id !== removerId);
   salvarJogadores();
-  salvarPartidas();
+  // Mesclar reescreve entries/stats de várias partidas — grava só as afetadas
+  // (multi-path update), sem sobrescrever o nó inteiro nem tocar no que o bot
+  // acabou de inserir.
+  salvarPartidasMuitas(dados.matches);
   renderJogadores();
   renderPartida();
   render();
@@ -645,14 +650,15 @@ export function salvarPartida() {
     )
       return;
   }
-  dados.matches.push({
+  const nova = {
     id: uid(),
     date: dataFinal,
     meta: { ...dados.meta },
     stats: statsArr,
     entries,
-  });
-  salvarPartidas();
+  };
+  dados.matches.push(nova);
+  salvarPartidaDb(nova);
   time = [];
   stats = {};
   renderPartida();
@@ -828,7 +834,7 @@ export function renderHistorico() {
 export function removerPartida(id) {
   if (!confirm("Excluir essa partida? Recalcula o ranking.")) return;
   dados.matches = dados.matches.filter((m) => m.id !== id);
-  salvarPartidas();
+  removerPartidaDb(id);
   renderHistorico();
   render();
 }
