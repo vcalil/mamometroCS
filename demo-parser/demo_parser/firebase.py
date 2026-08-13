@@ -78,14 +78,17 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
                 losers.append(pid)
         entries = [{"from": l, "to": w} for l in losers for w in winners]
 
-        # 4) Dedup por fingerprint + append no array estado/matches
+        # 4) Dedup por fingerprint + append em estado/matches.
+        # PATCH (corrida): o padrão anterior (ler array todo -> append -> set do
+        # nó inteiro) era um read-modify-write não-atômico. Dois writers
+        # concorrentes (duas execuções do parser em catch-up, ou parser + SPA do
+        # admin) liam o array antigo e o último set() apagava a partida do outro
+        # (lost update — foi o que fez partidas sumirem do site). A transação
+        # serializa o read-modify-write no servidor, mantendo o formato array
+        # que o SPA já lê (sem migração de formato).
+        # IMPORTANTE: NUNCA retornar None do update function — no SDK isso grava
+        # null no nó (apaga tudo). Dedup retorna a lista inalterada (no-op).
         ref = root.child("estado/matches")
-        existing = ref.get() or []
-        if any(isinstance(x, dict) and x.get("id") == fingerprint_id for x in existing):
-            return False
-        # Partida nova: propaga o rank (CS Rating Premier) dos jogadores pros
-        # cards em estado/players, pra o selo de rank aparecer no ranking.
-        atualizar_ranks(match)
         new_entry = {
             "id": fingerprint_id,
             "date": match.get("date"),
@@ -94,8 +97,31 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
             "stats": stats_arr,
             "entries": entries,
         }
-        existing.append(new_entry)
-        ref.set(existing)
+        added: list[bool] = [False]
+
+        def _append(current: Any) -> Any:
+            # None (nó não existe) ou lista/dict legado. Dedup por id — se já
+            # existe, retorna a lista inalterada (no-op, nunca None).
+            if current is None:
+                added[0] = True
+                return [new_entry]
+            if isinstance(current, dict):
+                # estado/matches como objeto {id: {...}} (de uma versão anterior)
+                vals = list(current.values())
+            else:
+                vals = list(current)
+            if any(isinstance(x, dict) and x.get("id") == fingerprint_id for x in vals):
+                return current  # já existe — no-op
+            vals.append(new_entry)
+            added[0] = True
+            return vals
+
+        ref.transaction(_append)
+        if not added[0]:
+            return False
+        # Partida nova: propaga o rank (CS Rating Premier) dos jogadores pros
+        # cards em estado/players, pra o selo de rank aparecer no ranking.
+        atualizar_ranks(match)
         return True
     except Exception as exc:  # noqa: BLE001 — RTDB errors are heterogeneous
         print(
