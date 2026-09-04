@@ -119,7 +119,32 @@ export function acharDuplicata(nova, existentes) {
   return provavel;
 }
 
-// Um jogador bateu a meta se atingiu kills E dano (comparado à meta dada).
+// ---- Ordenação de partidas --------------------------------------------------
+// O histórico e o ranking mostram as partidas da mais recente pra mais antiga.
+// `date` é YYYY-MM-DD (só o dia) — dentro do mesmo dia o desempate é o share
+// code (match id da demo, monotônico com o tempo) quando existir. Partidas sem
+// share code (lançadas à mão/admin/submissão) usam o timestamp de aprovação se
+// houver, senão vão pro fim do dia (mais antigas que as demos daquele dia).
+function ordemPartida(m) {
+  const sc = m.shareCode ? String(m.shareCode) : "";
+  if (sc) return { chave: m.date || "", seq: sc.padStart(24, "0") };
+  const ts = m.aprovadoEm || m.enviadoEm || 0;
+  return { chave: m.date || "", seq: Number(ts) ? String(ts).padStart(24, "0") : "0".padStart(24, "0") };
+}
+
+// Compara duas partidas: mais recente primeiro (date desc, share code desc).
+export function compararPartidas(a, b) {
+  const A = ordemPartida(a);
+  const B = ordemPartida(b);
+  const dc = (B.chave || "").localeCompare(A.chave || "");
+  if (dc !== 0) return dc;
+  // Mesma data: share code maior = partida mais recente. Partida manual (sem
+  // share code) com timestamp de aprovação compete por ts; sem ts, cai pra
+  // baixo (seq zero).
+  return B.seq.localeCompare(A.seq);
+}
+
+// Uma partida bateu a meta se atingiu kills E dano (comparado à meta dada).
 export function bateuMeta(stat, meta = dados.meta) {
   const k = Number(stat && stat.kills) || 0;
   const d = Number(stat && stat.damage) || 0;

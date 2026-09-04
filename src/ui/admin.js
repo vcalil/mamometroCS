@@ -11,6 +11,7 @@ import {
   statsList,
   acharDuplicata,
   nomeApelidoHtml,
+  compararPartidas,
 } from "../state.js";
 import {
   ehAdmin,
@@ -789,9 +790,7 @@ export function renderHistorico() {
     el.innerHTML = `<div class="aviso">Nenhuma partida registrada ainda.</div>`;
     return;
   }
-  const ord = [...dados.matches].sort((a, b) =>
-    (b.date || "").localeCompare(a.date || "")
-  );
+  const ord = [...dados.matches].sort(compararPartidas);
   el.innerHTML = ord
     .map((m) => {
       const pares = (m.entries || [])

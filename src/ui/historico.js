@@ -3,7 +3,7 @@
 // Por partida: data, mapa e os números de cada jogador (kills/dano) com ✓ (bateu
 // a meta) ou 🍼 (mamou). Partidas antigas sem `stats` caem no fallback das mamadas.
 
-import { dados, statsList, bateuMeta, escapar, nomeDe } from "../state.js";
+import { dados, statsList, bateuMeta, escapar, nomeDe, compararPartidas } from "../state.js";
 import { abrirOverlay } from "./overlay.js";
 
 const fmtData = (d) => (d ? d.split("-").reverse().join("/") : "?");
@@ -55,9 +55,7 @@ export function abrirHistorico() {
   // Todas as partidas entram no histórico. As sem nenhuma mamada (todo mundo
   // bateu a meta, ou ninguém bateu) ficam visíveis aqui, mas continuam fora do
   // ranking, da taxa e da contagem de partidas (regra semMamada).
-  const partidas = (dados.matches || [])
-    .slice()
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const partidas = (dados.matches || []).slice().sort(compararPartidas);
 
   let corpo;
   if (!partidas.length) {
