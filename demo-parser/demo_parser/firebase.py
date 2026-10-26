@@ -34,10 +34,13 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
     """Bridge `matches/{fp}` (demo bruto) -> `estado/matches` (formato do SPA).
 
     O SPA lê `estado/matches` como array de:
-        {id, date, meta, stats: [{id, kills, damage}], entries: [{from, to}]}
+        {id, date, map, shareCode?, meta, stats: [{id, kills, damage}],
+         entries: [{from, to}]}
     onde `entries` = relacoes de mamada: cada LOSER (nao bateu a meta)
     mamou cada WINNER (bateu meta: kills >= meta.kills E damage >= meta.damage).
     `id` do SPA vem do `estado/players` (mapeia steamId -> id).
+    `shareCode` (opcional) = match id da demo, usado como desempate de ordem
+    intra-dia no histórico (monotônico com o tempo).
 
     Idempotente: se `estado/matches` ja tem um entry com esse fingerprint_id,
     nao duplica. Best-effort: loga e retorna False se Firebase nao configurado.
@@ -97,6 +100,12 @@ def publish_to_ranking(fingerprint_id: str, match: dict[str, Any]) -> bool:
             "stats": stats_arr,
             "entries": entries,
         }
+        # Share code (match id da demo) — monotônico com o tempo. O SPA usa
+        # como desempate de ordem intra-dia no histórico/ranking. Só entra no
+        # doc quando existe (demos do downloader); partidas manuais/testes
+        # ficam sem o campo e o frontend as trata no fim do dia.
+        if match.get("shareCode"):
+            new_entry["shareCode"] = str(match["shareCode"])
         added: list[bool] = [False]
 
         def _append(current: Any) -> Any:

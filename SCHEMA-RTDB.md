@@ -20,10 +20,13 @@ functions (`/api/*`) e os serviços Python da VPS. Permissões de escrita ficam 
   (`/api/onboard` adiciona quem onboarda) — sempre **read-modify-write**.
 - **`estado/matches`** — partidas que contam no ranking. Array de:
   ```
-  { id, date, map, meta:{kills,damage}, stats:[{id,kills,damage}], entries:[{from,to}] }
+  { id, date, map, shareCode?, meta:{kills,damage}, stats:[{id,kills,damage}], entries:[{from,to}] }
   ```
   `entries` = mamadas: `from` mamou `to` (quem não bateu a meta mamou quem bateu).
   `id` = fingerprint da demo (dedup) ou id do SPA quando lançada pelo organizador.
+  `shareCode` = match id da demo (`match730_<shareCode>_*.dem`), monotônico com o
+  tempo — desempate de ordem intra-dia no histórico (partidas do mesmo dia em
+  ordem de share code = ordem real de jogo). Ausente em partidas manuais.
 - **`estado/meta`** — `{ kills, damage }`. Meta atual (padrão 15/1500).
 
 ## `roster/{steamId}` — onboard (bot)
@@ -37,11 +40,13 @@ dono (regras). O `authCode` é o token de partilha da Steam — **segredo**; o
 
 Match cru salvo pelo `demo-parser` antes de virar `estado/matches`:
 ```
-{ date, map, mode, source:"demo", groupMatch:true, groupCount:N,
+{ date, map, mode, shareCode?, source:"demo", groupMatch:true, groupCount:N,
   players:[{ steamId, name, kills, deaths, assists, damage, adr, hs, mvps,
              utilityDamage, enemiesFlashed, csRating, rankType, flashAssists }] }
 ```
 `fingerprint` = sha1(steamids ordenados | mapa | data) → idempotente.
+`shareCode` = match id extraído do filename (`match730_<shareCode>_*.dem`) quando
+o arquivo segue o padrão do downloader; usado como desempate de ordem intra-dia.
 
 ## `pipeline/status/{steamId}` — telemetria do bot
 

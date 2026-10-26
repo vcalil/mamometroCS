@@ -9,6 +9,7 @@ numbers the user sees in the client.
 from __future__ import annotations
 
 import os
+import re
 from datetime import datetime
 from typing import Any
 
@@ -47,6 +48,19 @@ def _safe_int(value: Any, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return default
+
+
+# Filename do downloader: match730_<share_code>_<outcome>_<...>_<mode>.dem
+# (ex.: match730_003840723478089040211_0996345786_201_competitive.dem).
+# O share code cresce monotonicamente com o tempo real do match — é o único
+# relógio confiável de ordem intra-dia (o header do .dem não tem timestamp).
+_SHARE_CODE_RE = re.compile(r"match730_(\d+)_\d+_\d+_\w+\.dem$")
+
+
+def share_code_from_filename(demo_path: str) -> str | None:
+    """Extrai o share code (match id) do filename de uma demo, se o padrão bater."""
+    m = _SHARE_CODE_RE.search(os.path.basename(demo_path) or "")
+    return m.group(1) if m else None
 
 
 def _flash_assists(parser: DemoParser) -> dict[str, int]:
@@ -199,4 +213,8 @@ def parse_demo(demo_path: str) -> dict[str, Any]:
         "map": map_name,
         "mode": mode,
         "players": players,
+        # Ordem intra-dia confiável (monotônica com o tempo): o share code
+        # presente no filename da demo. Ausente em dry-run de arquivos fora
+        # do padrão ou em partidas criadas à mão — o frontend trata ausência.
+        "shareCode": share_code_from_filename(demo_path),
     }

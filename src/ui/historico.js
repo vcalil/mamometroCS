@@ -3,7 +3,7 @@
 // Por partida: data, mapa e os números de cada jogador (kills/dano) com ✓ (bateu
 // a meta) ou 🍼 (mamou). Partidas antigas sem `stats` caem no fallback das mamadas.
 
-import { dados, statsList, bateuMeta, escapar, nomeDe, semMamada } from "../state.js";
+import { dados, statsList, bateuMeta, escapar, nomeDe, compararPartidas } from "../state.js";
 import { abrirOverlay } from "./overlay.js";
 
 const fmtData = (d) => (d ? d.split("-").reverse().join("/") : "?");
@@ -52,10 +52,10 @@ function linhasMamadas(m) {
 }
 
 export function abrirHistorico() {
-  // Partidas sem nenhuma mamada não contam — não entram no histórico.
-  const partidas = (dados.matches || [])
-    .filter((m) => !semMamada(m))
-    .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  // Todas as partidas entram no histórico. As sem nenhuma mamada (todo mundo
+  // bateu a meta, ou ninguém bateu) ficam visíveis aqui, mas continuam fora do
+  // ranking, da taxa e da contagem de partidas (regra semMamada).
+  const partidas = (dados.matches || []).slice().sort(compararPartidas);
 
   let corpo;
   if (!partidas.length) {
@@ -78,7 +78,7 @@ export function abrirHistorico() {
   document.getElementById("modal").innerHTML = `
     <button class="close-x" onclick="fecharOverlay()">×</button>
     <h2>Histórico de partidas</h2>
-    <div class="sub">${partidas.length} partida(s) registrada(s). ✓ bateu a meta · 🍼 mamou.</div>
+    <div class="sub">${partidas.length} partida(s) registrada(s). ✓ bateu a meta · 🍼 mamou. Partidas sem mamada não pontuam no ranking.</div>
     <div class="hist-lista">${corpo}</div>
   `;
   abrirOverlay();
